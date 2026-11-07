@@ -1,8 +1,8 @@
-SC TV 0.2.2 — verifica del 7 novembre 2026
+SC TV 0.2.3 — verifica del 7 novembre 2026
 
 Build autonomo src/tv.js: generato.
 Sintassi JavaScript: controllo superato.
-Test automatici DOM/eventi: 29 superati, 0 falliti.
+Test automatici DOM/eventi: 34 superati, 0 falliti.
 Dati reali del sito, analizzati offline senza eseguirne gli script:
 - Home: 70 schede.
 - Dettagli serie: 2 stagioni e 6 episodi.
@@ -21,3 +21,6 @@ La riproduzione sul dispositivo resta da verificare.
 
 5 test aggiuntivi superati: pannello diagnostico, verifica di origine e finestra dei messaggi, comandi nel frame, esclusione di URL/token dai messaggi, rifiuto di provenienze estranee.
 Il nuovo focus e il controllo media non costituiscono una verifica della riproduzione sulla TV.
+
+5 test aggiuntivi superati: accesso al pannello tramite D-pad, apertura automatica dopo 8 secondi, inoltro dei comandi senza video, identificazione di API mancanti senza dati sensibili, uscita dal fullscreen con Return.
+Il blocco video segnalato su UE49MU6500 non è ancora risolto.

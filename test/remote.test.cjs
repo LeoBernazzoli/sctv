@@ -216,14 +216,14 @@ test('player diagnostics accept only the actual embedded window and its expected
   key(457);assert.match(d.querySelector('#sc-tv-player-diagnostics').textContent,/Errore di decodifica/);
   assert.equal(w.__scTV.player.verifiedPlayback,false);
 });
-function embeddedEnvironment(t,parentURL=config.websiteURL){
+function embeddedEnvironment(t,parentURL=config.websiteURL,options={}){
   const dom=new JSDOM('<iframe src="https://vixcloud.cc/embed/2?token=secret-token"></iframe>',{url:parentURL,runScripts:'outside-only',virtualConsole:new VirtualConsole()});
   t.after(()=>dom.window.close());const reports=[];dom.window.postMessage=(data,target)=>reports.push({data,target});
   const child=dom.window.document.querySelector('iframe').contentWindow;
-  child.document.open();child.document.write('<body><video></video></body>');child.document.close();
+  child.document.open();child.document.write(options.noVideo?'<body></body>':'<body><video></video></body>');child.document.close();
   const video=child.document.querySelector('video');let paused=true;
-  Object.defineProperty(video,'paused',{get:()=>paused});
-  video.play=()=>{paused=false;return Promise.resolve();};video.pause=()=>{paused=true;};
+  if(video){Object.defineProperty(video,'paused',{get:()=>paused});
+  video.play=()=>{paused=false;return Promise.resolve();};video.pause=()=>{paused=true;};}
   child.eval(source);return {child,video,reports};
 }
 test('embedded player media controls operate on the video without sending source URLs',t=>{
@@ -244,4 +244,44 @@ test('embedded Info key requests diagnostics from the parent',t=>{
 test('embedded helper does not activate for a player opened from an unrelated site',t=>{
   const {child,reports}=embeddedEnvironment(t,'https://example.org/');
   assert.equal(child.__scTVFrame,undefined);assert.equal(reports.length,0);
+});
+
+test('D-pad and OK can open player diagnostics without pointer input',async t=>{
+ const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
+ const {d,key}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2'});
+ key(39);assert.equal(d.activeElement.id,'sc-tv-player-info');
+ key(13);assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,false);
+ key(10009);assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,true);
+ key(37);assert.equal(d.activeElement.id,'sc-tv-player-back');
+});
+test('missing video opens diagnostics automatically after eight seconds of reported blockage',async t=>{
+ const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
+ const {w,d,key}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2'});
+ const inner=d.querySelector('#sc-tv-player iframe').contentWindow.document;inner.open();inner.write('<iframe src="https://vixcloud.cc/embed/2"></iframe>');inner.close();
+ const sourceWindow=inner.querySelector('iframe').contentWindow;let now=1000;w.Date.now=()=>now;
+ const data={type:'sctv-player-state',stage:'no-video',scriptErrorKind:'ReferenceError',missingFeature:'URLSearchParams',scriptErrors:1};
+ const report=()=>w.dispatchEvent(new w.MessageEvent('message',{origin:'https://vixcloud.cc',source:sourceWindow,data}));
+ report();assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,true);
+ now=10000;report();const panel=d.querySelector('#sc-tv-player-diagnostics');
+ assert.equal(panel.hidden,false);assert.match(panel.textContent,/ReferenceError.*URLSearchParams/);
+ key(10009);now=14000;report();assert.equal(panel.hidden,true);
+});
+test('embedded helper forwards remote navigation when the external player has no video',t=>{
+ const {child,reports}=embeddedEnvironment(t,config.websiteURL,{noVideo:true});
+ const event=new child.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true});
+ child.document.body.dispatchEvent(event);assert.equal(event.defaultPrevented,true);
+ assert.ok(reports.some(r=>r.data.action==='navigate'&&r.data.key===39));
+});
+test('script diagnostics recognise missing APIs without disclosing error URLs or tokens',t=>{
+ const {child,reports}=embeddedEnvironment(t,config.websiteURL,{noVideo:true});
+ child.dispatchEvent(new child.ErrorEvent('error',{message:'URLSearchParams is not defined at https://private.example/?token=secret-token',error:new child.ReferenceError('URLSearchParams is not defined')}));
+ const data=reports[reports.length-1].data;assert.equal(data.scriptErrorKind,'ReferenceError');assert.equal(data.missingFeature,'URLSearchParams');
+ assert.equal(JSON.stringify(reports).includes('private.example'),false);assert.equal(JSON.stringify(reports).includes('secret-token'),false);
+});
+test('Return exits fullscreen before leaving the player',t=>{
+ const {child,reports,video}=embeddedEnvironment(t);let exited=false;
+ Object.defineProperty(child.document,'fullscreenElement',{value:video});
+ child.document.exitFullscreen=()=>{exited=true;return Promise.resolve();};
+ child.document.body.dispatchEvent(new child.KeyboardEvent('keydown',{keyCode:10009,bubbles:true,cancelable:true}));
+ assert.equal(exited,true);assert.equal(reports.some(r=>r.data.action==='navigate'),false);
 });
