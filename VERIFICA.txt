@@ -1,8 +1,8 @@
-SC TV 0.2.0 — verifica del 7 novembre 2026
+SC TV 0.2.1 — verifica del 7 novembre 2026
 
 Build autonomo src/tv.js: generato.
 Sintassi JavaScript: controllo superato.
-Test automatici DOM/eventi: 20 superati, 0 falliti.
+Test automatici DOM/eventi: 24 superati, 0 falliti.
 Dati reali del sito, analizzati offline senza eseguirne gli script:
 - Home: 70 schede.
 - Dettagli serie: 2 stagioni e 6 episodi.
@@ -14,3 +14,7 @@ La riproduzione apre il lettore originale del sito.
 
 Verifica visuale nel browser non disponibile.
 Rendering, tastiera nativa, telecomando e riproduzione su Samsung TV non verificati.
+
+Fallback Watch per browser senza script a moduli: 4 test aggiuntivi superati (montaggio iframe, browser moderni, login richiesto, indirizzi estranei).
+Target indicato: Samsung UE49MU6500, anno 2017, Tizen 3.0 / Chromium 47.
+La riproduzione sul dispositivo resta da verificare.

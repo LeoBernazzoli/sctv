@@ -40,6 +40,7 @@ async function boot(t, options = {}) {
     abort() { this.aborted=true;w.clearTimeout(this.timer);if(this.onabort)this.onabort(); }
   };
   if(options.storage)w.localStorage.setItem('sctv-list',JSON.stringify(options.storage));
+  if(options.modern)Object.defineProperty(w.HTMLScriptElement.prototype,'noModule',{value:false,configurable:true});
   w.eval(source);
   await tick(w);
   const d=w.document;
@@ -167,4 +168,27 @@ test('repeated injection and unrelated sites are left alone',async t=>{
 test('resizes proportionally for 720p television viewports',async t=>{
   const {w,d}=await boot(t);w.innerWidth=1280;w.innerHeight=720;w.dispatchEvent(new w.Event('resize'));
   assert.match(d.querySelector('#sc-tv-root').style.transform,/scale\(0\.666/);
+});
+
+test('Tizen 3 fallback mounts the server-provided same-origin player iframe',async t=>{
+  const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2?e=1002',redirectToLogin:false}};
+  const {w,d}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2?e=1002'});
+  const frame=d.querySelector('#sc-tv-player iframe');
+  assert.ok(frame);assert.equal(frame.src,page.props.embedUrl);assert.ok(frame.hasAttribute('allowfullscreen'));
+  assert.equal(w.__scTV.player.iframeMounted,true);assert.equal(w.__scTV.player.verifiedPlayback,false);
+});
+test('modern browsers keep the original watch application',async t=>{
+  const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
+  const {w,d}=await boot(t,{page,modern:true,url:'https://streamingcommunityz.boo/en/watch/2'});
+  assert.equal(d.querySelector('#sc-tv-player'),null);assert.equal(w.__scTV.player.legacyBootstrap,false);
+});
+test('legacy player fallback preserves login requirements',async t=>{
+  const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2',redirectToLogin:true}};
+  const {w,d}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2'});
+  assert.equal(d.querySelector('#sc-tv-player'),null);assert.equal(w.__scTV.player.reason,'site-requires-login');
+});
+test('legacy player fallback rejects unrelated embed addresses',async t=>{
+  const page={component:'Titles/Watch',props:{embedUrl:'https://example.org/en/iframe/2'}};
+  const {w,d}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2'});
+  assert.equal(d.querySelector('#sc-tv-player'),null);assert.equal(w.__scTV.player.reason,'unexpected-embed-address');
 });

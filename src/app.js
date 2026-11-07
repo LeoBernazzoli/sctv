@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var HOME_URL = 'https://streamingcommunityz.boo/en';
-  var VERSION = '0.2.0';
+  var VERSION = '0.2.1';
   var CSS = /*__SC_TV_CSS__*/ "";
   var homeLink = document.createElement('a');
   homeLink.href = HOME_URL;
@@ -447,6 +447,54 @@
   }
   function playerMode() {
     window.__scTV.mode = 'player';
+    // Tizen 3 (Chromium 47) cannot start the site's type="module" watch bundle.
+    // Mount only the same iframe page the server already provided. Its player,
+    // authentication, stream selection and access checks remain in place.
+    var legacy = !('noModule' in document.createElement('script'));
+    window.__scTV.player = {legacyBootstrap:legacy, engine:'site-iframe', verifiedPlayback:false};
+    if (legacy) {
+      var data = document.querySelector('[data-page]');
+      var page;
+      try { page = data && JSON.parse(data.getAttribute('data-page')); } catch (e) {}
+      if (page && page.component === 'Titles/Watch' && page.props) {
+        if (page.props.redirectToLogin) {
+          window.__scTV.player.reason = 'site-requires-login';
+        } else if (page.props.embedUrl) {
+          var url = document.createElement('a');
+          url.href = page.props.embedUrl;
+          if (url.protocol === homeLink.protocol && url.host === homeLink.host &&
+              /^\/(en|it)\/iframe\/[0-9]+$/.test(url.pathname)) {
+            var playerStyle = document.createElement('style');
+            playerStyle.textContent = '#sc-tv-player{position:fixed;top:0;right:0;bottom:0;left:0;background:black;z-index:2147483645;}' +
+              '#sc-tv-player iframe{display:block;width:100%;height:100%;border:0;}' +
+              '#sc-tv-player-back{position:absolute;left:3%;top:3%;font:24px/1.4 Arial,sans-serif;padding:13px 22px;' +
+              'color:white;background:rgba(15,18,28,.9);border:2px solid #798295;border-radius:8px;z-index:1;}' +
+              '#sc-tv-player-back:focus{outline:4px solid white;}' +
+              'html.sc-tv-player-active,html.sc-tv-player-active body{margin:0!important;overflow:hidden!important;}' +
+              'html.sc-tv-player-active #app{display:none!important;}';
+            (document.head || document.documentElement).appendChild(playerStyle);
+            var playerRoot = document.createElement('div');
+            playerRoot.id = 'sc-tv-player';
+            var frame = document.createElement('iframe');
+            frame.title = 'Lettore video del sito';
+            frame.src = url.href;
+            frame.setAttribute('allowfullscreen', '');
+            frame.setAttribute('webkitallowfullscreen', '');
+            frame.setAttribute('allow', 'autoplay; fullscreen');
+            playerRoot.appendChild(frame);
+            var returnButton = document.createElement('button');
+            returnButton.id = 'sc-tv-player-back';
+            returnButton.type = 'button';
+            returnButton.textContent = '‹ Catalogo';
+            returnButton.onclick = function () { window.location.assign(origin + '/' + locale); };
+            playerRoot.appendChild(returnButton);
+            document.body.appendChild(playerRoot);
+            document.documentElement.classList.add('sc-tv-player-active');
+            window.__scTV.player.iframeMounted = true;
+          } else window.__scTV.player.reason = 'unexpected-embed-address';
+        }
+      }
+    }
     window.addEventListener('keydown', function (e) {
       var code = e.keyCode;
       if (code === 406 && !e.repeat) { consume(e); window.location.assign(origin + '/' + locale); }
