@@ -1,10 +1,13 @@
-SC TV 0.3.0 / SC TV Auto 1.0.0 — 7 novembre 2026
+SC TV 0.3.1 / SC TV Auto 1.0.0 — 7 novembre 2026
 
 Build e controllo sintassi: superati.
-Test automatici: 44 superati, 0 falliti (inclusi 10 test del caricatore automatico).
+Test automatici: 47 superati, 0 falliti (inclusi 10 test del caricatore automatico).
 Verificati: scelta di una versione nuova con lo stesso ingresso, controllo cache, ripiego sulla versione disponibile, conferma del servizio prima della navigazione, errori/retry e rifiuto di metadati non validi.
 Prova locale sul gestore messaggi reale del servizio TizenBrew: passaggio di modulo e conferma riusciti; nessuna scrittura all'elenco dei moduli installati.
 
 Il caricatore non esegue JavaScript scaricato con eval: fa avviare il modulo corretto a TizenBrew.
 Primo avvio e aggiornamenti sulla TV fisica: da confermare.
 Riproduzione su Samsung UE49MU6500: ancora bloccata e in diagnosi.
+
+3 regressioni verificate: pannello di emergenza senza messaggi esterni, soppressione quando la riproduzione è segnalata, rispetto della chiusura manuale del pannello.
+La verifica fisica sulla TV e il blocco della riproduzione restano aperti.

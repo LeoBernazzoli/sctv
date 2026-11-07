@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var HOME_URL = 'https://streamingcommunityz.boo/en';
-  var VERSION = '0.3.0';
+  var VERSION = '0.3.1';
   var CSS = /*__SC_TV_CSS__*/ "";
   var homeLink = document.createElement('a');
   homeLink.href = HOME_URL;
@@ -601,14 +601,14 @@
             returnButton.onclick = function () { window.location.assign(origin + '/' + locale); };
             playerRoot.appendChild(returnButton);
             var diagnosticButton = document.createElement('button');
-            diagnosticButton.id = 'sc-tv-player-info'; diagnosticButton.type = 'button'; diagnosticButton.textContent = 'Info lettore';
+            diagnosticButton.id = 'sc-tv-player-info'; diagnosticButton.type = 'button'; diagnosticButton.textContent = 'Info lettore · ' + VERSION;
             var playerStatus = document.createElement('div');
             playerStatus.id = 'sc-tv-player-status';
             playerStatus.textContent = 'Apertura lettore… Premi OK o Play per avviare. Info per la diagnosi.';
             var diagnosticPanel = document.createElement('div');
             diagnosticPanel.id = 'sc-tv-player-diagnostics'; diagnosticPanel.hidden = true;
             diagnosticPanel.setAttribute('role','dialog'); diagnosticPanel.setAttribute('aria-label','Diagnostica lettore');
-            var lastState = null, noVideoSince = null, automaticallyOpened = false;
+            var lastState = null, noVideoSince = null, automaticallyOpened = false, playerWatchdog = null;
             var stageLabels = { 'no-video':'Il lettore esterno non ha ancora creato un video.',
               'loading':'Video creato: attesa dei dati del film.', 'ready':'Dati video pronti: premi OK o Play nel lettore.',
               'playing':'Il lettore segnala una riproduzione in corso.', 'play-blocked':'Avvio non riuscito: premi OK o Play direttamente nel lettore.',
@@ -624,6 +624,7 @@
             }
             function renderDiagnostics() {
               var lines = ['SC TV ' + VERSION + ' — stato del lettore'];
+              if (window.__scTV.player.diagnosticsReason === 'local-timeout') lines.push('Apertura di emergenza: riproduzione non confermata entro 12 secondi.');
               if (!lastState) lines.push('Nessun dato ricevuto dal lettore esterno. Questo non identifica ancora la causa del blocco.');
               else {
                 lines.push(stageLabels[lastState.stage]);
@@ -640,7 +641,12 @@
             }
             togglePlayerDiagnostics = function () {
               renderDiagnostics(); diagnosticPanel.hidden = !diagnosticPanel.hidden;
-              if (diagnosticPanel.hidden) focusEmbeddedPlayer(); else diagnosticButton.focus();
+              if (diagnosticPanel.hidden) focusEmbeddedPlayer();
+              else {
+                automaticallyOpened = true;
+                window.clearTimeout(playerWatchdog);
+                diagnosticButton.focus();
+              }
             };
             diagnosticButton.onclick = togglePlayerDiagnostics;
             handlePlayerKey = function (code) {
@@ -682,6 +688,7 @@
                 scriptErrorKind:['SyntaxError','ReferenceError','TypeError','RangeError','ResourceError','Error'].indexOf(data.scriptErrorKind) === -1 ? '' : data.scriptErrorKind,
                 missingFeature:knownPlayerFeature(data.missingFeature)};
               window.__scTV.player.lastState = lastState;
+              if (lastState.stage === 'playing') window.clearTimeout(playerWatchdog);
               playerStatus.textContent = stageLabels[lastState.stage] + (lastState.error ? ' ' + errorLabels[lastState.error] + '.' : '') + ' Info per i dettagli.';
               playerStatus.hidden = lastState.stage === 'playing';
               renderDiagnostics();
@@ -696,12 +703,30 @@
             document.body.appendChild(playerRoot);
             document.documentElement.classList.add('sc-tv-player-active');
             window.__scTV.player.iframeMounted = true;
+            // This timer deliberately does not depend on callbacks from the external
+            // player. A blocked or silent frame must not hide the recovery controls.
+            playerWatchdog = window.setTimeout(function () {
+              if (automaticallyOpened || (lastState && lastState.stage === 'playing')) return;
+              window.__scTV.player.diagnosticsReason = 'local-timeout';
+              if (document.fullscreenElement || document.webkitFullscreenElement) {
+                var leaveFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+                if (leaveFullscreen) {
+                  try {
+                    var leaving = leaveFullscreen.call(document);
+                    if (leaving && leaving.catch) leaving.catch(function () {});
+                  } catch (e) {}
+                }
+              }
+              if (diagnosticPanel.hidden) togglePlayerDiagnostics();
+              else renderDiagnostics();
+            },12000);
+            window.addEventListener('pagehide',function () { window.clearTimeout(playerWatchdog); });
           } else window.__scTV.player.reason = 'unexpected-embed-address';
         }
       }
     }
     window.addEventListener('keydown', function (e) {
-      var code = e.keyCode;
+      var code = e.keyCode || {Enter:13,Escape:27,BrowserBack:10009,ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40,Info:457,ColorF3Blue:406}[e.key];
       if (handlePlayerKey && [13,27,37,38,39,40,10009].indexOf(code) !== -1) {
         consume(e);
         if (!e.repeat || (code >= 37 && code <= 40)) handlePlayerKey(code);

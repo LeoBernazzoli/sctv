@@ -1,6 +1,6 @@
 # SC TV — TizenBrew
 
-Versione applicazione **0.3.0**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
+Versione applicazione **0.3.1**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
 
 ## Installazione una volta sola: SC TV Auto
 
@@ -80,7 +80,7 @@ L'indirizzo iniziale resta quello fornito: `https://streamingcommunityz.boo/en`.
 
 ## Verifiche
 
-- 44 test automatici: navigazione, ricerca, dettagli, stagioni, link episodi, lista personale, errori HTTP, annullamento delle richieste, sicurezza del rendering e ridimensionamento.
+- 47 test automatici: navigazione, ricerca, dettagli, stagioni, link episodi, lista personale, errori HTTP, annullamento delle richieste, sicurezza del rendering e ridimensionamento.
 - Integrazione offline con i dati reali del sito: 70 schede in home, 2 stagioni, 6 episodi e 31 risultati di ricerca caricati correttamente. Gli script del sito non sono stati eseguiti in questa prova.
 - Il browser collegato non era disponibile per la verifica visuale. Rendering sulla TV, tastiera nativa, telecomando fisico e riproduzione restano da verificare.
 
@@ -118,4 +118,12 @@ Avvia la versione più recente da **SC TV Auto** e attendi circa 10 secondi dopo
 
 Il riferimento `@a` è il caricatore stabile e non va spostato. Le nuove versioni dell'app vengono pubblicate con un nuovo tag e selezionate tramite `update.json`. Vedi [PUBLISHING.md](PUBLISHING.md) per l'ordine di pubblicazione e il ripristino di una versione precedente.
 
-Il caricatore supera 10 test dedicati; la suite completa ne contiene 44. È stato verificato anche il passaggio dei messaggi usando il gestore reale del servizio TizenBrew in una prova locale. Il primo avvio e l'aggiornamento sulla TV fisica restano da confermare. Il blocco della riproduzione segnalato su UE49MU6500 rimane in diagnosi: l'aggiornamento automatico non è una certificazione del player.
+Il caricatore supera 10 test dedicati; la suite completa ne contiene 47. È stato verificato anche il passaggio dei messaggi usando il gestore reale del servizio TizenBrew in una prova locale. Il primo avvio e l'aggiornamento sulla TV fisica restano da confermare. Il blocco della riproduzione segnalato su UE49MU6500 rimane in diagnosi: l'aggiornamento automatico non è una certificazione del player.
+
+## Pannello di emergenza senza messaggi dal player (0.3.1)
+
+Il pannello non dipende più soltanto dai messaggi del lettore esterno: un controllo locale nella pagina Watch lo apre dopo 12 secondi se la riproduzione non è stata segnalata. Se il player ha segnalato una riproduzione in corso, il controllo viene annullato. Se l'utente apre e chiude il pannello manualmente, non viene riaperto dal controllo locale.
+
+Il pulsante in alto mostra **Info lettore · 0.3.1**, così è possibile riconoscere la versione arrivata alla TV senza aprire il menu. L'apertura di emergenza tenta anche di uscire dal fullscreen per rendere visibile il pannello. Le frecce/OK del parent riconoscono sia i codici numerici sia i nomi dei tasti.
+
+Per riceverla basta chiudere e riaprire **SC TV Auto**, oppure usare Aggiorna nel menu dell'app. Non aggiungere nuove voci e non modificare `@a`. Se non compare il pannello, una foto dell'intero schermo permette di controllare anche la versione visualizzata. Il problema della riproduzione rimane da diagnosticare.

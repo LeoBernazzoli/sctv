@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var HOME_URL = 'https://streamingcommunityz.boo/en';
-  var VERSION = '0.3.0';
+  var VERSION = '0.3.1';
   var CSS = "html.sc-tv-active,html.sc-tv-active body{margin:0!important;padding:0!important;overflow:hidden!important;background:#090b10!important;opacity:1!important;transform:none!important}\nhtml.sc-tv-active body>#app{display:none!important}\n#sc-tv-root,#sc-tv-root *{box-sizing:border-box}\n#sc-tv-root{position:fixed;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;z-index:2147483645;background:#090b10;color:#f7f7f8;font:30px/1.4 Arial,Helvetica,sans-serif;text-align:left;letter-spacing:0;overflow:hidden;isolation:isolate}\n#sc-tv-root button,#sc-tv-root input,#sc-tv-root a{font:inherit;border:0;letter-spacing:0}\n#sc-tv-root a{color:inherit;text-decoration:none;outline:none}\n#sc-tv-root button{cursor:pointer;color:inherit;outline:none;text-align:left}\n#sc-tv-root [hidden]{display:none!important}\n#sc-tv-root .sc-top{height:108px;padding:0 86px;display:flex;align-items:center;position:absolute;top:0;left:0;right:0;z-index:6;background:linear-gradient(#090b10 30%,rgba(9,11,16,.94) 85%,rgba(9,11,16,0))}\n#sc-tv-root .sc-logo{font-weight:900;font-size:44px;letter-spacing:-3px;color:#ff3348;margin-right:56px;white-space:nowrap}\n#sc-tv-root .sc-logo span{font-size:23px;color:#f4f4f5;letter-spacing:2px;margin-left:8px;vertical-align:middle}\n#sc-tv-root .sc-nav{display:flex;align-items:center;width:100%}\n#sc-tv-root .sc-nav button,#sc-tv-root .sc-nav a{padding:13px 18px;border-radius:9px;background:transparent;color:#aeb1bc;font-size:29px;white-space:nowrap}\n#sc-tv-root .sc-nav button.sc-selected{color:#fff;font-weight:700}\n#sc-tv-root .sc-nav .sc-push{margin-left:auto}\n#sc-tv-root [data-sc-focus=\"true\"]{outline:4px solid #fff!important;outline-offset:5px!important;box-shadow:0 0 0 7px rgba(255,255,255,.12);z-index:2}\n#sc-tv-root .sc-nav [data-sc-focus=\"true\"]{background:#f1f2f5!important;color:#0a0c10!important}\n#sc-tv-root .sc-scroll{height:1080px;overflow-y:auto;overflow-x:hidden;padding-bottom:110px;scrollbar-width:none}\n#sc-tv-root .sc-scroll::-webkit-scrollbar,#sc-tv-root .sc-track::-webkit-scrollbar{display:none}\n#sc-tv-root .sc-hero{height:598px;position:relative;padding:178px 100px 30px;overflow:hidden;background:#0d111b}\n#sc-tv-root .sc-hero-art{position:absolute;top:0;right:0;width:79%;height:100%;object-fit:cover;object-position:center 24%;opacity:.85}\n#sc-tv-root .sc-hero-shade{position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(90deg,#090b10 5%,rgba(9,11,16,.92) 20%,rgba(9,11,16,.45) 54%,rgba(9,11,16,.02) 85%),linear-gradient(0deg,#090b10,transparent 52%)}\n#sc-tv-root .sc-hero-copy{position:relative;max-width:930px;z-index:1}\n#sc-tv-root .sc-eyebrow{font-size:23px;letter-spacing:5px;font-weight:700;color:#c7c9d2;text-transform:uppercase;margin-bottom:12px}\n#sc-tv-root h1{font:800 68px/1.06 Arial,Helvetica,sans-serif;color:#fff;margin:0 0 17px;max-height:145px;overflow:hidden;letter-spacing:-2px;text-shadow:0 2px 18px rgba(0,0,0,.3)}\n#sc-tv-root .sc-meta{font-size:25px;color:#b9bdc9;margin-bottom:15px;min-height:32px}\n#sc-tv-root .sc-score{color:#7fe3ad;font-weight:700}\n#sc-tv-root .sc-description{font-size:28px;line-height:1.4;color:#d2d4dd;margin:0 0 25px;max-width:790px;max-height:80px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}\n#sc-tv-root .sc-actions{display:flex;align-items:center;margin:18px 0}\n#sc-tv-root .sc-action{display:inline-block;border-radius:9px;padding:17px 27px!important;background:#2a2e3b;min-height:72px;font-size:29px;font-weight:700;white-space:nowrap}\n#sc-tv-root .sc-action.sc-primary{background:#f5f5f7;color:#0b0d11}\n#sc-tv-root .sc-action.sc-red{background:#e32943;color:#fff}\n#sc-tv-root .sc-row{padding:12px 0 13px 100px;position:relative}\n#sc-tv-root .sc-row h2,#sc-tv-root .sc-section-title{font:700 31px/1.25 Arial,Helvetica,sans-serif;margin:0 0 19px;color:#f5f5f7}\n#sc-tv-root .sc-track{display:flex;overflow-x:auto;overflow-y:hidden;padding:9px 100px 16px 9px;margin-left:-9px;scrollbar-width:none}\n#sc-tv-root .sc-card{flex:0 0 310px;width:310px;padding:0;background:transparent;border-radius:9px;position:relative;display:block}\n#sc-tv-root .sc-card-art{width:310px;height:174px;border-radius:8px;overflow:hidden;background:linear-gradient(135deg,#202738,#111722);position:relative}\n#sc-tv-root .sc-card img{display:block;width:100%;height:100%;object-fit:cover}\n#sc-tv-root .sc-card-title{display:block;font-size:30px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:11px;color:#f1f2f6}\n#sc-tv-root .sc-card-meta{display:block;font-size:24px;color:#9299ab;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n#sc-tv-root .sc-card [data-rank]{position:absolute;bottom:5px;left:12px;font-size:65px;line-height:1;font-weight:900;color:white;text-shadow:0 2px 8px #000}\n#sc-tv-root .sc-card[data-sc-focus=\"true\"] .sc-card-title{color:#fff}\n#sc-tv-root .sc-titlebar{padding:152px 100px 26px}\n#sc-tv-root .sc-titlebar h1{font-size:54px;max-height:none;margin-bottom:12px}\n#sc-tv-root .sc-titlebar p{font-size:27px;color:#9da4b6;margin:0}\n#sc-tv-root .sc-grid{display:flex;flex-wrap:wrap;padding:10px 100px 40px}\n#sc-tv-root .sc-grid .sc-card{flex-basis:320px;width:320px;margin-bottom:12px}\n#sc-tv-root .sc-grid .sc-card-art{width:320px;height:180px}\n#sc-tv-root .sc-search-form{display:flex;padding:0 100px 35px}\n#sc-tv-root .sc-search-form input{background:#202532;color:white;padding:21px 25px;border-radius:10px;width:100%;font-size:36px;height:88px;outline:none}\n#sc-tv-root .sc-search-form input::placeholder{color:#8f97a9}\n#sc-tv-root .sc-search-form button{min-width:175px}\n#sc-tv-root .sc-empty{padding:35px 100px;font-size:30px;color:#aab0bf;max-width:1400px}\n#sc-tv-root .sc-status{position:absolute;right:72px;bottom:34px;color:#b5b9c7;background:rgba(17,21,31,.96);font-size:24px;border:1px solid #333a4b;padding:14px 24px;border-radius:9px;z-index:8;max-width:1450px}\n#sc-tv-root .sc-loading{position:absolute;top:108px;right:0;bottom:0;left:0;background:rgba(9,11,16,.88);z-index:9;display:flex;align-items:center;justify-content:center;font-size:34px}\n#sc-tv-root .sc-bottom-hint{position:absolute;bottom:0;left:0;right:0;height:63px;padding:19px 100px;background:linear-gradient(transparent,#090b10 40%);font-size:20px;color:#737c90;pointer-events:none;z-index:5}\n#sc-tv-root .sc-details .sc-hero{height:640px;padding-top:176px}\n#sc-tv-root .sc-details .sc-description{max-height:120px;-webkit-line-clamp:3}\n#sc-tv-root .sc-seasons{display:flex;padding:3px 100px 30px;overflow-x:auto}\n#sc-tv-root .sc-season{padding:15px 24px;border-radius:9px;font-size:28px;background:#242a39;white-space:nowrap}\n#sc-tv-root .sc-season.sc-selected{background:#e5e6ec;color:#121621}\n#sc-tv-root .sc-episode{display:flex;align-items:center;width:100%;min-height:106px;padding:19px 28px;margin:0 0 16px;border-radius:9px;background:#161b27;font-size:29px}\n#sc-tv-root .sc-episode-number{font-size:35px;color:#737e96;width:55px;flex-shrink:0;font-weight:700}\n#sc-tv-root .sc-episode-copy{flex:1;min-width:0}\n#sc-tv-root .sc-episode-copy span{display:block;color:#a9b1c3;font-size:23px;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n#sc-tv-root .sc-episodes{padding:0 100px 30px}\n#sc-tv-root .sc-modal-shade{position:absolute;top:0;right:0;bottom:0;left:0;z-index:15;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center}\n#sc-tv-root .sc-modal{width:1320px;background:#171d2a;border:1px solid #3a455b;border-radius:18px;padding:52px}\n#sc-tv-root .sc-modal h2{font-size:44px;margin:0 0 24px;color:#fff}\n#sc-tv-root .sc-modal p{font-size:29px;line-height:1.5;color:#c0c7d5;margin:18px 0}\n#sc-tv-root .sc-modal .sc-actions{margin-top:35px;gap:24px}\n#sc-tv-root .sc-error{padding:190px 100px 40px;max-width:1500px}\n#sc-tv-root .sc-error h1{font-size:58px;max-height:none}\n#sc-tv-root .sc-error p{font-size:31px;color:#b5bed0;line-height:1.6}\n\n/* Explicit margins keep spacing on Tizen engines without flex-gap support. */\n#sc-tv-root .sc-nav button,#sc-tv-root .sc-nav a{margin-right:14px}\n#sc-tv-root .sc-nav button:last-child,#sc-tv-root .sc-nav a:last-child{margin-right:0}\n#sc-tv-root .sc-actions>*+*{margin-left:22px}\n#sc-tv-root .sc-track .sc-card+.sc-card{margin-left:24px}\n#sc-tv-root .sc-grid .sc-card{margin:0 24px 30px 0}\n#sc-tv-root .sc-search-form input{margin-right:24px}\n#sc-tv-root .sc-seasons button+button{margin-left:20px}\n#sc-tv-root .sc-episode>span+span{margin-left:28px}\n";
   var homeLink = document.createElement('a');
   homeLink.href = HOME_URL;
@@ -601,14 +601,14 @@
             returnButton.onclick = function () { window.location.assign(origin + '/' + locale); };
             playerRoot.appendChild(returnButton);
             var diagnosticButton = document.createElement('button');
-            diagnosticButton.id = 'sc-tv-player-info'; diagnosticButton.type = 'button'; diagnosticButton.textContent = 'Info lettore';
+            diagnosticButton.id = 'sc-tv-player-info'; diagnosticButton.type = 'button'; diagnosticButton.textContent = 'Info lettore · ' + VERSION;
             var playerStatus = document.createElement('div');
             playerStatus.id = 'sc-tv-player-status';
             playerStatus.textContent = 'Apertura lettore… Premi OK o Play per avviare. Info per la diagnosi.';
             var diagnosticPanel = document.createElement('div');
             diagnosticPanel.id = 'sc-tv-player-diagnostics'; diagnosticPanel.hidden = true;
             diagnosticPanel.setAttribute('role','dialog'); diagnosticPanel.setAttribute('aria-label','Diagnostica lettore');
-            var lastState = null, noVideoSince = null, automaticallyOpened = false;
+            var lastState = null, noVideoSince = null, automaticallyOpened = false, playerWatchdog = null;
             var stageLabels = { 'no-video':'Il lettore esterno non ha ancora creato un video.',
               'loading':'Video creato: attesa dei dati del film.', 'ready':'Dati video pronti: premi OK o Play nel lettore.',
               'playing':'Il lettore segnala una riproduzione in corso.', 'play-blocked':'Avvio non riuscito: premi OK o Play direttamente nel lettore.',
@@ -624,6 +624,7 @@
             }
             function renderDiagnostics() {
               var lines = ['SC TV ' + VERSION + ' — stato del lettore'];
+              if (window.__scTV.player.diagnosticsReason === 'local-timeout') lines.push('Apertura di emergenza: riproduzione non confermata entro 12 secondi.');
               if (!lastState) lines.push('Nessun dato ricevuto dal lettore esterno. Questo non identifica ancora la causa del blocco.');
               else {
                 lines.push(stageLabels[lastState.stage]);
@@ -640,7 +641,12 @@
             }
             togglePlayerDiagnostics = function () {
               renderDiagnostics(); diagnosticPanel.hidden = !diagnosticPanel.hidden;
-              if (diagnosticPanel.hidden) focusEmbeddedPlayer(); else diagnosticButton.focus();
+              if (diagnosticPanel.hidden) focusEmbeddedPlayer();
+              else {
+                automaticallyOpened = true;
+                window.clearTimeout(playerWatchdog);
+                diagnosticButton.focus();
+              }
             };
             diagnosticButton.onclick = togglePlayerDiagnostics;
             handlePlayerKey = function (code) {
@@ -682,6 +688,7 @@
                 scriptErrorKind:['SyntaxError','ReferenceError','TypeError','RangeError','ResourceError','Error'].indexOf(data.scriptErrorKind) === -1 ? '' : data.scriptErrorKind,
                 missingFeature:knownPlayerFeature(data.missingFeature)};
               window.__scTV.player.lastState = lastState;
+              if (lastState.stage === 'playing') window.clearTimeout(playerWatchdog);
               playerStatus.textContent = stageLabels[lastState.stage] + (lastState.error ? ' ' + errorLabels[lastState.error] + '.' : '') + ' Info per i dettagli.';
               playerStatus.hidden = lastState.stage === 'playing';
               renderDiagnostics();
@@ -696,12 +703,30 @@
             document.body.appendChild(playerRoot);
             document.documentElement.classList.add('sc-tv-player-active');
             window.__scTV.player.iframeMounted = true;
+            // This timer deliberately does not depend on callbacks from the external
+            // player. A blocked or silent frame must not hide the recovery controls.
+            playerWatchdog = window.setTimeout(function () {
+              if (automaticallyOpened || (lastState && lastState.stage === 'playing')) return;
+              window.__scTV.player.diagnosticsReason = 'local-timeout';
+              if (document.fullscreenElement || document.webkitFullscreenElement) {
+                var leaveFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+                if (leaveFullscreen) {
+                  try {
+                    var leaving = leaveFullscreen.call(document);
+                    if (leaving && leaving.catch) leaving.catch(function () {});
+                  } catch (e) {}
+                }
+              }
+              if (diagnosticPanel.hidden) togglePlayerDiagnostics();
+              else renderDiagnostics();
+            },12000);
+            window.addEventListener('pagehide',function () { window.clearTimeout(playerWatchdog); });
           } else window.__scTV.player.reason = 'unexpected-embed-address';
         }
       }
     }
     window.addEventListener('keydown', function (e) {
-      var code = e.keyCode;
+      var code = e.keyCode || {Enter:13,Escape:27,BrowserBack:10009,ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40,Info:457,ColorF3Blue:406}[e.key];
       if (handlePlayerKey && [13,27,37,38,39,40,10009].indexOf(code) !== -1) {
         consume(e);
         if (!e.repeat || (code >= 37 && code <= 40)) handlePlayerKey(code);

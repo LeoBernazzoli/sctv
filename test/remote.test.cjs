@@ -20,6 +20,8 @@ async function boot(t, options = {}) {
   const responses = {...options.responses};
   const dom = new JSDOM(html(options.page || home), {url:options.url || config.websiteURL,runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:new VirtualConsole()});
   const w = dom.window;
+  const localTimers=[];
+  if(options.captureWatchdog){const schedule=w.setTimeout.bind(w);w.setTimeout=(fn,delay,...args)=>{if(delay===12000){localTimers.push(fn);return 99999;}return schedule(fn,delay,...args);};}
   t.after(() => w.close());
   Object.defineProperty(w,'innerWidth',{value:1920,writable:true});
   Object.defineProperty(w,'innerHeight',{value:1080,writable:true});
@@ -47,7 +49,7 @@ async function boot(t, options = {}) {
   const key=(code,extra={})=>{const e=new w.KeyboardEvent('keydown',{keyCode:code,bubbles:true,cancelable:true,...extra});d.activeElement.dispatchEvent(e);return e;};
   const select=name=>d.querySelector('[data-key="'+name+'"]').click();
   const focused=()=>d.activeElement.getAttribute('data-key');
-  return {w,d,key,select,focused,requests,responses};
+  return {w,d,key,select,focused,requests,responses,localTimers};
 }
 
 test('manifest ships a standalone compiled TV interface with matching version',()=>{
@@ -284,4 +286,26 @@ test('Return exits fullscreen before leaving the player',t=>{
  child.document.exitFullscreen=()=>{exited=true;return Promise.resolve();};
  child.document.body.dispatchEvent(new child.KeyboardEvent('keydown',{keyCode:10009,bubbles:true,cancelable:true}));
  assert.equal(exited,true);assert.equal(reports.some(r=>r.data.action==='navigate'),false);
+});
+
+test('player recovery opens without receiving any messages from the external player',async t=>{
+ const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
+ const {w,d,localTimers}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2',captureWatchdog:true});
+ assert.equal(localTimers.length,1);assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,true);
+ localTimers[0]();const panel=d.querySelector('#sc-tv-player-diagnostics');
+ assert.equal(panel.hidden,false);assert.match(panel.textContent,/Apertura di emergenza/);assert.match(panel.textContent,/Nessun dato ricevuto/);
+ assert.equal(w.__scTV.player.diagnosticsReason,'local-timeout');assert.equal(d.activeElement.id,'sc-tv-player-info');
+ assert.match(d.querySelector('#sc-tv-player-info').textContent,new RegExp(config.version.replace(/\./g,'\\.')));
+});
+test('player recovery stays closed when playback is reported',async t=>{
+ const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
+ const {w,d,localTimers}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2',captureWatchdog:true});
+ const inner=d.querySelector('#sc-tv-player iframe').contentWindow.document;inner.open();inner.write('<iframe src="https://vixcloud.cc/embed/2"></iframe>');inner.close();
+ w.dispatchEvent(new w.MessageEvent('message',{origin:'https://vixcloud.cc',source:inner.querySelector('iframe').contentWindow,data:{type:'sctv-player-state',stage:'playing',readyState:4}}));
+ localTimers[0]();assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,true);
+});
+test('closing diagnostics manually suppresses the local recovery reopening',async t=>{
+ const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
+ const {d,key,localTimers}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2',captureWatchdog:true});
+ key(457);key(10009);localTimers[0]();assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,true);
 });
