@@ -192,3 +192,56 @@ test('legacy player fallback rejects unrelated embed addresses',async t=>{
   const {w,d}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2'});
   assert.equal(d.querySelector('#sc-tv-player'),null);assert.equal(w.__scTV.player.reason,'unexpected-embed-address');
 });
+
+test('player diagnostics show missing observations without claiming a codec failure',async t=>{
+  const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
+  const {d,key}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2'});
+  key(457);const panel=d.querySelector('#sc-tv-player-diagnostics');
+  assert.equal(panel.hidden,false);assert.match(panel.textContent,/Nessun dato ricevuto/);
+  key(10009);assert.equal(panel.hidden,true);
+});
+test('player diagnostics accept only the actual embedded window and its expected origin',async t=>{
+  const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
+  const {w,d,key}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2'});
+  const frame=d.querySelector('#sc-tv-player iframe');
+  const inner=frame.contentWindow.document;inner.open();inner.write('<iframe src="https://vixcloud.cc/embed/2"></iframe>');inner.close();
+  const sourceWindow=inner.querySelector('iframe').contentWindow;
+  const data={type:'sctv-player-state',stage:'media-error',error:3,readyState:1,networkState:2,scriptErrors:0,moduleScripts:1,modulesSupported:false};
+  w.dispatchEvent(new w.MessageEvent('message',{origin:'https://example.org',source:sourceWindow,data}));
+  assert.equal(w.__scTV.player.lastState,undefined);
+  w.dispatchEvent(new w.MessageEvent('message',{origin:'https://vixcloud.cc',source:w,data}));
+  assert.equal(w.__scTV.player.lastState,undefined);
+  w.dispatchEvent(new w.MessageEvent('message',{origin:'https://vixcloud.cc',source:sourceWindow,data}));
+  assert.equal(w.__scTV.player.lastState.error,3);
+  key(457);assert.match(d.querySelector('#sc-tv-player-diagnostics').textContent,/Errore di decodifica/);
+  assert.equal(w.__scTV.player.verifiedPlayback,false);
+});
+function embeddedEnvironment(t,parentURL=config.websiteURL){
+  const dom=new JSDOM('<iframe src="https://vixcloud.cc/embed/2?token=secret-token"></iframe>',{url:parentURL,runScripts:'outside-only',virtualConsole:new VirtualConsole()});
+  t.after(()=>dom.window.close());const reports=[];dom.window.postMessage=(data,target)=>reports.push({data,target});
+  const child=dom.window.document.querySelector('iframe').contentWindow;
+  child.document.open();child.document.write('<body><video></video></body>');child.document.close();
+  const video=child.document.querySelector('video');let paused=true;
+  Object.defineProperty(video,'paused',{get:()=>paused});
+  video.play=()=>{paused=false;return Promise.resolve();};video.pause=()=>{paused=true;};
+  child.eval(source);return {child,video,reports};
+}
+test('embedded player media controls operate on the video without sending source URLs',t=>{
+  const {child,video,reports}=embeddedEnvironment(t);
+  child.document.body.dispatchEvent(new child.KeyboardEvent('keydown',{keyCode:13,bubbles:true,cancelable:true}));
+  assert.equal(video.paused,false);
+  child.document.body.dispatchEvent(new child.KeyboardEvent('keydown',{keyCode:19,bubbles:true,cancelable:true}));
+  assert.equal(video.paused,true);
+  assert.ok(reports.length);assert.ok(reports.every(r=>r.target==='https://streamingcommunityz.boo'));
+  assert.equal(JSON.stringify(reports).includes('secret-token'),false);
+  assert.equal(JSON.stringify(reports).includes('currentSrc'),false);
+});
+test('embedded Info key requests diagnostics from the parent',t=>{
+  const {child,reports}=embeddedEnvironment(t);
+  child.document.body.dispatchEvent(new child.KeyboardEvent('keydown',{keyCode:457,bubbles:true,cancelable:true}));
+  assert.ok(reports.some(r=>r.data.type==='sctv-player-action'&&r.data.action==='diagnostics'));
+});
+test('embedded helper does not activate for a player opened from an unrelated site',t=>{
+  const {child,reports}=embeddedEnvironment(t,'https://example.org/');
+  assert.equal(child.__scTVFrame,undefined);assert.equal(reports.length,0);
+});

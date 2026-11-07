@@ -2,10 +2,18 @@
 (function () {
   'use strict';
   var HOME_URL = 'https://streamingcommunityz.boo/en';
-  var VERSION = '0.2.1';
+  var VERSION = '0.2.2';
   var CSS = /*__SC_TV_CSS__*/ "";
   var homeLink = document.createElement('a');
   homeLink.href = HOME_URL;
+  // TizenBrew injects in each frame. Observe only the player embedded by this site.
+  // Reports contain media state and error codes, never source URLs or tokens.
+  if (window.top !== window.self && location.hostname === 'vixcloud.cc' && /^\/embed\//.test(location.pathname)) {
+    var referringPage = document.createElement('a');
+    referringPage.href = document.referrer;
+    if (referringPage.host === homeLink.host && referringPage.protocol === homeLink.protocol) observePlayerFrame();
+    return;
+  }
   if (location.hostname !== homeLink.hostname || window.top !== window.self || window.__scTV) return;
   window.__scTV = { version: VERSION, mode: 'starting' };
   var origin = homeLink.protocol + '//' + homeLink.host;
@@ -15,6 +23,68 @@
   var state, homePage, homeReady = false, screenScale = 1, current, rows = [], stack = [], favourites = [];
   var requestId = 0, activeRequest = null, busy = false, noticeTimer;
   var detailCache = {}, previousFocus, modalOpen = false;
+
+  function observePlayerFrame() {
+    if (window.__scTVFrame) return;
+    window.__scTVFrame = {version:VERSION};
+    var video = null, scriptErrors = 0, blocked = false, lastReport = 0;
+    var destination = homeLink.protocol + '//' + homeLink.host;
+    var started = Date.now(), poll;
+    function report(force) {
+      var now = Date.now();
+      if (!force && now - lastReport < 1000) return;
+      lastReport = now;
+      var found = document.querySelector('video');
+      if (found && found !== video) {
+        video = found;
+        ['loadedmetadata','canplay','playing','waiting','stalled','pause','error','timeupdate'].forEach(function (name) {
+          video.addEventListener(name, function () { if (name === 'playing') blocked = false; report(name === 'error'); });
+        });
+      }
+      var error = video && video.error ? Number(video.error.code) : 0;
+      var stage = !video ? 'no-video' : (error ? 'media-error' : (blocked ? 'play-blocked' :
+        (!video.paused && video.currentTime > 0 ? 'playing' : (video.readyState >= 2 ? 'ready' : 'loading'))));
+      window.top.postMessage({type:'sctv-player-state', version:VERSION, stage:stage, error:error,
+        readyState:video ? Number(video.readyState) : 0, networkState:video ? Number(video.networkState) : 0,
+        scriptErrors:scriptErrors, modulesSupported:'noModule' in document.createElement('script'),
+        moduleScripts:document.querySelectorAll('script[type="module"]').length}, destination);
+      if (poll && now - started > 120000) window.clearInterval(poll);
+    }
+    window.addEventListener('error', function (event) {
+      if ((event.target && event.target.tagName === 'SCRIPT') || event.message) { scriptErrors++; report(true); }
+    }, true);
+    window.addEventListener('keydown', function (event) {
+      var code = event.keyCode;
+      if (event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
+      if (code === 457 || code === 406) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        if (!event.repeat) window.top.postMessage({type:'sctv-player-action',action:code === 457 ? 'diagnostics' : 'home'},destination);
+        return;
+      }
+      var active = document.activeElement;
+      if (active && (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(active.tagName) || active.isContentEditable || active.getAttribute('role') === 'button')) return;
+      if (!video) { report(true); return; }
+      if ([13,415,19,413,10252,417,412].indexOf(code) === -1) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (event.repeat && (code === 13 || code === 10252)) return;
+      try {
+        if (code === 415 || ((code === 13 || code === 10252) && video.paused)) {
+          blocked = false;
+          var playing = video.play();
+          if (playing && playing.catch) playing.catch(function () { blocked = true; report(true); });
+        } else if (code === 19 || code === 413 || code === 13 || code === 10252) video.pause();
+        else {
+          var start = video.seekable.length ? video.seekable.start(0) : 0;
+          var end = video.seekable.length ? video.seekable.end(video.seekable.length - 1) : video.duration;
+          if (isFinite(end)) video.currentTime = Math.max(start,Math.min(end,video.currentTime + (code === 417 ? 10 : -10)));
+        }
+        report(true);
+      } catch (e) { report(true); }
+    }, true);
+    report(true);
+    poll = window.setInterval(function () { report(false); },2000);
+    window.addEventListener('pagehide',function () { window.clearInterval(poll); });
+  }
 
   function esc(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
@@ -447,6 +517,7 @@
   }
   function playerMode() {
     window.__scTV.mode = 'player';
+    var togglePlayerDiagnostics = null;
     // Tizen 3 (Chromium 47) cannot start the site's type="module" watch bundle.
     // Mount only the same iframe page the server already provided. Its player,
     // authentication, stream selection and access checks remain in place.
@@ -469,7 +540,11 @@
               '#sc-tv-player iframe{display:block;width:100%;height:100%;border:0;}' +
               '#sc-tv-player-back{position:absolute;left:3%;top:3%;font:24px/1.4 Arial,sans-serif;padding:13px 22px;' +
               'color:white;background:rgba(15,18,28,.9);border:2px solid #798295;border-radius:8px;z-index:1;}' +
-              '#sc-tv-player-back:focus{outline:4px solid white;}' +
+              '#sc-tv-player-back:focus,#sc-tv-player-info:focus{outline:4px solid white;}' +
+              '#sc-tv-player-info{position:absolute;right:3%;top:3%;font:24px/1.4 Arial,sans-serif;padding:13px 22px;color:white;background:#171c28;border:2px solid #798295;border-radius:8px;z-index:1;}' +
+              '#sc-tv-player-status{position:absolute;bottom:3%;left:3%;max-width:90%;font:23px/1.5 Arial,sans-serif;color:white;background:rgba(15,18,28,.92);padding:10px 18px;border-radius:8px;pointer-events:none;}' +
+              '#sc-tv-player-diagnostics{position:absolute;left:8%;right:8%;top:17%;padding:30px;color:white;background:#141b29;border:2px solid #75819a;border-radius:12px;font:25px/1.6 Arial,sans-serif;white-space:pre-wrap;z-index:3;}' +
+              '#sc-tv-player [hidden]{display:none!important;}' +
               'html.sc-tv-player-active,html.sc-tv-player-active body{margin:0!important;overflow:hidden!important;}' +
               'html.sc-tv-player-active #app{display:none!important;}';
             (document.head || document.documentElement).appendChild(playerStyle);
@@ -488,6 +563,72 @@
             returnButton.textContent = '‹ Catalogo';
             returnButton.onclick = function () { window.location.assign(origin + '/' + locale); };
             playerRoot.appendChild(returnButton);
+            var diagnosticButton = document.createElement('button');
+            diagnosticButton.id = 'sc-tv-player-info'; diagnosticButton.type = 'button'; diagnosticButton.textContent = 'Info lettore';
+            var playerStatus = document.createElement('div');
+            playerStatus.id = 'sc-tv-player-status';
+            playerStatus.textContent = 'Apertura lettore… Premi OK o Play per avviare. Info per la diagnosi.';
+            var diagnosticPanel = document.createElement('div');
+            diagnosticPanel.id = 'sc-tv-player-diagnostics'; diagnosticPanel.hidden = true;
+            diagnosticPanel.setAttribute('role','dialog'); diagnosticPanel.setAttribute('aria-label','Diagnostica lettore');
+            var lastState = null;
+            var stageLabels = { 'no-video':'Il lettore esterno non ha ancora creato un video.',
+              'loading':'Video creato: attesa dei dati del film.', 'ready':'Dati video pronti: premi OK o Play nel lettore.',
+              'playing':'Il lettore segnala una riproduzione in corso.', 'play-blocked':'Avvio non riuscito: premi OK o Play direttamente nel lettore.',
+              'media-error':'Il video ha segnalato un errore.' };
+            var errorLabels = {1:'Riproduzione interrotta',2:'Errore di rete',3:'Errore di decodifica',4:'Sorgente o formato non supportato'};
+            function focusEmbeddedPlayer() {
+              if (!diagnosticPanel.hidden) return;
+              try {
+                var child = frame.contentDocument && frame.contentDocument.querySelector('iframe');
+                if (child) { child.focus(); return; }
+              } catch (e) {}
+              frame.focus();
+            }
+            function renderDiagnostics() {
+              var lines = ['SC TV ' + VERSION + ' — stato del lettore'];
+              if (!lastState) lines.push('Nessun dato ricevuto dal lettore esterno. Questo non identifica ancora la causa del blocco.');
+              else {
+                lines.push(stageLabels[lastState.stage]);
+                lines.push('Stato dati video: ' + lastState.readyState + ' / 4; stato rete: ' + lastState.networkState + ' / 3');
+                lines.push('Errore video: ' + (errorLabels[lastState.error] || 'nessuno segnalato'));
+                lines.push('Errori script rilevati: ' + lastState.scriptErrors);
+                lines.push('Script a moduli supportati: ' + (lastState.modulesSupported ? 'sì' : 'no') + '; presenti nel lettore: ' + lastState.moduleScripts);
+              }
+              lines.push('Info o Return chiude questa schermata. Blu torna al catalogo.');
+              lines.push('Questo controllo non certifica immagine e audio sulla TV.');
+              diagnosticPanel.textContent = lines.join('\n');
+            }
+            togglePlayerDiagnostics = function () {
+              renderDiagnostics(); diagnosticPanel.hidden = !diagnosticPanel.hidden;
+              if (diagnosticPanel.hidden) focusEmbeddedPlayer(); else diagnosticButton.focus();
+            };
+            diagnosticButton.onclick = togglePlayerDiagnostics;
+            playerRoot.appendChild(diagnosticButton); playerRoot.appendChild(playerStatus); playerRoot.appendChild(diagnosticPanel);
+            frame.onload = function () { focusEmbeddedPlayer(); };
+            window.addEventListener('message',function (event) {
+              if (event.origin !== 'https://vixcloud.cc' || !event.data || typeof event.data !== 'object') return;
+              var recognised = false;
+              try {
+                var children = frame.contentWindow.frames;
+                for (var i = 0; i < children.length; i++) if (event.source === children[i]) recognised = true;
+              } catch (e) {}
+              if (!recognised) return;
+              var data = event.data;
+              if (data.type === 'sctv-player-action') {
+                if (data.action === 'diagnostics') togglePlayerDiagnostics();
+                if (data.action === 'home') returnButton.click();
+                return;
+              }
+              if (data.type !== 'sctv-player-state' || !Object.prototype.hasOwnProperty.call(stageLabels,data.stage)) return;
+              function bounded(value,max) { var number = Number(value); return isFinite(number) ? Math.max(0,Math.min(max,Math.floor(number))) : 0; }
+              lastState = {stage:data.stage,error:bounded(data.error,4),readyState:bounded(data.readyState,4),networkState:bounded(data.networkState,3),
+                scriptErrors:bounded(data.scriptErrors,999),moduleScripts:bounded(data.moduleScripts,999),modulesSupported:data.modulesSupported === true};
+              window.__scTV.player.lastState = lastState;
+              playerStatus.textContent = stageLabels[lastState.stage] + (lastState.error ? ' ' + errorLabels[lastState.error] + '.' : '') + ' Info per i dettagli.';
+              playerStatus.hidden = lastState.stage === 'playing';
+              renderDiagnostics();
+            });
             document.body.appendChild(playerRoot);
             document.documentElement.classList.add('sc-tv-player-active');
             window.__scTV.player.iframeMounted = true;
@@ -497,6 +638,11 @@
     }
     window.addEventListener('keydown', function (e) {
       var code = e.keyCode;
+      if (code === 457 && togglePlayerDiagnostics) { consume(e); if (!e.repeat) togglePlayerDiagnostics(); }
+      if ((code === 27 || code === 10009) && togglePlayerDiagnostics) {
+        var panel = document.getElementById('sc-tv-player-diagnostics');
+        if (panel && !panel.hidden) { consume(e); if (!e.repeat) togglePlayerDiagnostics(); }
+      }
       if (code === 406 && !e.repeat) { consume(e); window.location.assign(origin + '/' + locale); }
     }, true);
   }
