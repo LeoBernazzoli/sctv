@@ -1,0 +1,23 @@
+{
+  "name": "streamingcommunity-tizenbrew",
+  "version": "0.1.0",
+  "description": "Modulo TizenBrew non ufficiale con navigazione da telecomando per StreamingCommunity.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LeoBernazzoli/streamingcommunity-tizenbrew.git"
+  },
+  "appName": "StreamingCommunity TV",
+  "packageType": "mods",
+  "websiteURL": "https://streamingcommunityz.boo/en",
+  "main": "src/tv.js",
+  "evaluateScriptOnDocumentStart": false,
+  "keys": ["Info", "ColorF3Blue", "MediaPlayPause", "MediaPlay", "MediaPause", "MediaStop", "MediaFastForward", "MediaRewind"],
+  "files": ["src/tv.js", "README.md"],
+  "scripts": {
+    "check": "node --check src/tv.js",
+    "test": "node --test test/*.test.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}

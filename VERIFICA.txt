@@ -1,0 +1,11 @@
+Verifica del 7 novembre 2026
+
+Controllo sintassi JavaScript: superato.
+Test automatici DOM/eventi: 12 superati, 0 falliti.
+Manifest TizenBrew e percorsi del pacchetto: verificati.
+Pacchetto npm (dry run): verificato, 3 file runtime/documentazione.
+Markup HTML del sito indicato: prova offline superata; selettore Play trovato.
+Gli script del sito non sono stati eseguiti nella prova offline.
+
+Non verificati: rendering reale, riproduzione remota, codec, tastiera e telecomando su TV Samsung.
+Installazione sulla TV: non eseguita.
