@@ -1,16 +1,13 @@
 {
-  "name": "sctv",
-  "version": "0.3.0",
-  "description": "Interfaccia TV per StreamingCommunity: catalogo, ricerca, lista personale, stagioni ed episodi.",
+  "name": "sctv-auto",
+  "version": "1.0.0",
+  "appName": "SC TV Auto",
+  "main": "launcher/auto.js",
+  "packageType": "mods",
   "repository": {
     "type": "git",
     "url": "https://github.com/LeoBernazzoli/sctv.git"
   },
-  "appName": "SC TV",
-  "packageType": "mods",
-  "websiteURL": "https://streamingcommunityz.boo/en",
-  "main": "src/tv.js",
-  "evaluateScriptOnDocumentStart": false,
   "keys": [
     "Info",
     "ColorF3Blue",
@@ -21,17 +18,12 @@
     "MediaFastForward",
     "MediaRewind"
   ],
+  "evaluateScriptOnDocumentStart": false,
+  "description": "Ingresso stabile di SC TV: controlla gli aggiornamenti a ogni apertura.",
+  "websiteURL": "http://127.0.0.1:8081/module/gh%2Fleobernazzoli%2Fsctv%40a/launcher/index.html",
   "files": [
-    "src/tv.js",
+    "launcher/index.html",
+    "launcher/auto.js",
     "README.md"
-  ],
-  "scripts": {
-    "build": "node scripts/build.cjs",
-    "check": "node scripts/build.cjs && node --check src/tv.js",
-    "pretest": "node scripts/build.cjs",
-    "test": "node --test test/*.test.cjs"
-  },
-  "devDependencies": {
-    "jsdom": "26.1.0"
-  }
+  ]
 }
