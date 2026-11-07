@@ -1,11 +1,16 @@
-Verifica del 7 novembre 2026
+SC TV 0.2.0 — verifica del 7 novembre 2026
 
-Controllo sintassi JavaScript: superato.
-Test automatici DOM/eventi: 12 superati, 0 falliti.
-Manifest TizenBrew e percorsi del pacchetto: verificati.
-Pacchetto npm (dry run): verificato, 3 file runtime/documentazione.
-Markup HTML del sito indicato: prova offline superata; selettore Play trovato.
-Gli script del sito non sono stati eseguiti nella prova offline.
+Build autonomo src/tv.js: generato.
+Sintassi JavaScript: controllo superato.
+Test automatici DOM/eventi: 20 superati, 0 falliti.
+Dati reali del sito, analizzati offline senza eseguirne gli script:
+- Home: 70 schede.
+- Dettagli serie: 2 stagioni e 6 episodi.
+- Ricerca: 31 risultati.
 
-Non verificati: rendering reale, riproduzione remota, codec, tastiera e telecomando su TV Samsung.
-Installazione sulla TV: non eseguita.
+Le API TV del sito hanno richiesto accesso (401/403); non vengono usate.
+Il catalogo usa i dati JSON incorporati nelle normali pagine pubbliche.
+La riproduzione apre il lettore originale del sito.
+
+Verifica visuale nel browser non disponibile.
+Rendering, tastiera nativa, telecomando e riproduzione su Samsung TV non verificati.

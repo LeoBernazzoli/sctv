@@ -1,76 +1,83 @@
-# StreamingCommunity TV per TizenBrew
+# SC TV — TizenBrew
 
-Prototipo non ufficiale, versione 0.1.1. Apre **https://streamingcommunityz.boo/en** e aggiunge la navigazione con telecomando al sito esistente. La lingua iniziale resta quella dell'indirizzo fornito (`/en`).
+Versione **0.2.0**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
 
-## Installazione sulla TV
+## Installazione e aggiornamento
 
-Serve TizenBrew già installato e funzionante sulla TV Samsung. Questo progetto è un **modulo `mods`**, non un pacchetto `.wgt`: non richiede una compilazione con Tizen Studio.
+1. In TizenBrew scegli **Aggiungi modulo GitHub / Add GitHub Module**.
+2. Inserisci **`leobernazzoli/sctv`**.
+3. Conferma con Fine/Done e lascia il campo di testo. L'aggiunta avviene senza una schermata di installazione.
+4. Chiudi completamente e riapri TizenBrew; avvia **SC TV (0.2.0)** dalla schermata principale.
 
-1. In TizenBrew apri il gestore moduli e scegli **Add GitHub Module**.
-2. Inserisci esattamente `leobernazzoli/sctv`.
-3. Conferma sulla tastiera con Fine/Done ed esci dal campo. L'aggiunta avviene senza una schermata di installazione.
-4. Torna alla schermata principale e avvia **SC TV** dall'elenco dei moduli.
+Se usi già il modulo, il nome resta lo stesso: riavvia TizenBrew per ricaricarlo. La versione è visibile anche nel menu Info/blu. Se compare ancora 0.1.x, la CDN o TizenBrew possono avere una copia precedente; in alternativa aggiungi `leobernazzoli/sctv@v0.2.0` per usare una versione fissata.
 
-Repository: [leobernazzoli/sctv](https://github.com/leobernazzoli/sctv). Lo ZIP contiene i sorgenti: per l'installazione usa il nome del modulo sopra. Il caricamento GitHub usa jsDelivr; subito dopo una pubblicazione o un aggiornamento può esserci un ritardo di disponibilità. Dopo un aggiornamento chiudi completamente e riapri TizenBrew, che mantiene una cache dello script.
+È mantenuta anche la copia di compatibilità `LeoBernazzoli/streamingcomunity-tizenbrew`, con una sola `m` in `comunity`, per le TV dove quel nome è già stato salvato. Il repository principale è [leobernazzoli/sctv](https://github.com/LeoBernazzoli/sctv).
 
-Riferimenti: [moduli TizenBrew](https://github.com/reisxd/TizenBrew/blob/main/docs/MODULES.md), [caricamento moduli](https://github.com/reisxd/TizenBrew/blob/main/tizenbrew-app/TizenBrew/service-nextgen/service/utils/moduleLoader.js).
+Serve TizenBrew installato e funzionante. Questo è un modulo `mods`, non un'app WGT autonoma. I file compilati sono già nel repository: non devi compilare nulla per usarlo sulla TV.
+
+## Cosa cambia dalla versione 0.1
+
+- Interfaccia a schermo intero con impaginazione 1920×1080 che si adatta proporzionalmente al viewport della TV.
+- Testo, pulsanti e copertine dimensionati per l'uso dal divano.
+- Selezione a righe controllata direttamente dalle frecce, senza scandire gli elementi del sito desktop a ogni pressione.
+- Home, Film, Serie TV, Cerca e La mia lista.
+- Schermata dei dettagli con stagioni ed episodi, quando presenti nei dati del sito.
+- Lista personale salvata localmente nel browser della TV.
+- Ritorno alla scheda dopo aver lasciato il lettore, quando la sessione del browser lo consente.
 
 ## Comandi
 
 | Tasto | Azione |
 | --- | --- |
-| Frecce | Sposta la selezione fra link, schede e pulsanti; scorre per raggiungerli |
-| OK | Attiva la selezione; nei campi di testo usa il comportamento della tastiera TV |
-| Return / Indietro | Chiude l'aiuto, esce dal campo di testo, esce dal fullscreen oppure torna alla pagina precedente |
-| Info oppure blu | Apre/chiude il menu con aiuto, pagina iniziale e ricaricamento |
-| Play / Pausa | Controlla un video HTML5 accessibile nella pagina principale |
-| Stop | Mette in pausa il video |
-| Avanti / Indietro multimediali | Sposta il video di 10 secondi, entro i limiti disponibili |
+| Frecce | Sposta la selezione fra menu, pulsanti, titoli ed episodi |
+| OK | Attiva la selezione |
+| Return / Indietro | Esce dalla ricerca, torna alla schermata precedente o apre il menu dalla home |
+| Info / Blu | Apre o chiude il menu di aiuto |
+| IT / EN nel menu | Cambia la lingua del catalogo tramite la pagina del sito corrispondente |
+| Blu durante la riproduzione | Torna alla home, se la pagina principale riceve il tasto |
 
-Nei campi di testo, nei menu di selezione, sui video e negli iframe restano attivi i comandi nativi. Premi Return per lasciare un campo di ricerca e riprendere la navigazione a frecce.
+In Cerca, la tastiera della TV mantiene il controllo delle frecce. Conferma con il pulsante Cerca; Return esce dal campo e seleziona il pulsante. Nel lettore restano attivi i comandi originali del sito e della TV.
 
-## Compatibilità e limiti
+Il menu Info/blu contiene anche **Sito originale**, che mostra la pagina sottostante per la sessione corrente, ed **Esci**. Riaprire il modulo ripristina l'interfaccia TV.
 
-- Verificato con test automatici del DOM e degli eventi; **non provato su una TV Samsung**. Indica modello/anno della TV e versione TizenBrew per eventuali correzioni specifiche.
-- Il sito usa JavaScript moderno: il modulo non aggiorna il motore web della TV. Se il sito non si avvia su un modello vecchio, questo adattamento potrebbe non bastare.
-- Il lettore video non viene sostituito. Codec, streaming, fullscreen e autenticazione dipendono dal sito, dal lettore e dalla TV.
-- Lo script opera solo nella pagina principale sul dominio configurato. I lettori in iframe, soprattutto su domini diversi, mantengono i propri comandi; i tasti multimediali del modulo possono quindi non raggiungerli.
-- Menu personalizzati senza elementi HTML interattivi o ruoli accessibili potrebbero richiedere adattamenti ulteriori. Il modulo rileva i dialoghi HTML aperti e quelli marcati `role="dialog" aria-modal="true"`.
-- Il modulo dipende dal sito remoto e dai suoi cambiamenti di struttura. Il codice del modulo non aggiunge servizi, proxy o raccolta dati; il sito continua a caricare le proprie risorse.
+## Catalogo e API
 
-## Sviluppo e controlli
+Non è stata individuata documentazione di un'API pubblica ufficiale riutilizzabile. Il sito espone route `/api/tv/...`, ma nella verifica hanno restituito errori di accesso (401/403): il modulo non le usa e non tenta di aggirarne l'autenticazione.
 
-Con Node.js 22:
+L'interfaccia legge il JSON `data-page` che il sito consegna già nelle pagine di home, ricerca e dettagli. Le richieste successive sono normali GET sullo stesso dominio e nella sessione del browser. Le pagine ricevute vengono analizzate come dati: gli script delle risposte non vengono eseguiti. Non serve un proxy o un server aggiuntivo.
+
+Il formato è interno al sito, quindi può cambiare. Se il catalogo non è leggibile, il modulo mantiene la schermata corrente e mostra un errore. Le pagine non riconosciute, come login e gestione account, mantengono l'interfaccia originale.
+
+## Riproduzione e limiti
+
+**Il lettore video resta quello del sito.** Guarda ed episodi aprono le normali pagine `/en/watch/...` o `/it/watch/...`. Non vengono estratti playlist, token o chiavi; non viene aggiunto un lettore AVPlay indipendente.
+
+La nuova versione migliora catalogo e navigazione. Codec, audio, DRM, fullscreen, accesso al video e gestione dei tasti negli iframe dipendono ancora dal sito e dalla TV. Il tasto blu non può essere garantito quando il focus è dentro un iframe di un altro dominio.
+
+Le schede Film/Serie filtrano le raccolte della home; per trovare titoli fuori da quelle raccolte usa Cerca. La lista personale non è sincronizzata con l'account del sito o con altre TV.
+
+La compatibilità sul dispositivo non è ancora verificata: servono modello/anno della Samsung e una prova reale. Sono presenti accorgimenti per motori Tizen meno recenti, inclusi JavaScript senza sintassi moderna nel bundle, XMLHttpRequest e spaziatura senza dipendere da flex-gap.
+
+## Sviluppo
+
+Con Node.js 22 o superiore:
 
 ```sh
 npm ci
+npm run build
 npm run check
 npm test
 npm pack --dry-run
 ```
 
-Il codice eseguito sulla TV è `src/tv.js`, senza dipendenze esterne. `jsdom` serve solo ai test locali. La geometria è simulata nei test: non costituisce una verifica del layout o del player sulla TV.
+`src/app.js` contiene la logica e `src/tv.css` lo stile. `scripts/build.cjs` genera `src/tv.js`, un unico file con lo stile incorporato. **Dopo una modifica ai sorgenti, ricompila e carica anche `src/tv.js`**. Il campo `main` del manifest punta al bundle compilato. Nessuna dipendenza esterna viene caricata dall'interfaccia sulla TV; jsdom serve soltanto ai test di sviluppo.
 
-Per aggiornare l'indirizzo, cambia sia `websiteURL` in `package.json` sia `HOME_URL` all'inizio di `src/tv.js`, poi esegui i controlli. Il controllo del dominio impedisce di applicare l'adattamento ad altri siti.
+L'indirizzo iniziale resta quello fornito: `https://streamingcommunityz.boo/en`. Per cambiarlo aggiorna `websiteURL` nel manifest e `HOME_URL` nei sorgenti, poi ricompila.
 
-## Prova sul dispositivo
+## Verifiche
 
-1. Verifica che compaia il messaggio iniziale e che Play sia evidenziato.
-2. Prova frecce e OK su menu, schede e dettagli; prova un campo di ricerca con la tastiera TV.
-3. Prova Info/blu, chiusura con Return e ritorno alla selezione precedente.
-4. Avvia un video e verifica audio, immagine, fullscreen e comandi del lettore. Segnala separatamente se il problema riguarda l'apertura del sito oppure il video.
+- 20 test automatici: navigazione, ricerca, dettagli, stagioni, link episodi, lista personale, errori HTTP, annullamento delle richieste, sicurezza del rendering e ridimensionamento.
+- Integrazione offline con i dati reali del sito: 70 schede in home, 2 stagioni, 6 episodi e 31 risultati di ricerca caricati correttamente. Gli script del sito non sono stati eseguiti in questa prova.
+- Il browser collegato non era disponibile per la verifica visuale. Rendering sulla TV, tastiera nativa, telecomando fisico e riproduzione restano da verificare.
 
-Questi controlli sul dispositivo restano da eseguire.
-
-## Se compare Unknown Module
-
-Il nome atteso della tessera è **SC TV (0.1.1)**. `Unknown Module` viene mostrato dal caricatore di TizenBrew quando il manifest non è raggiungibile o non viene riconosciuto. In quel caso il caricatore assegna un indirizzo di avvio vuoto: la schermata scura non dimostra che il sito sia stato aperto.
-
-Per le TV che hanno già salvato `LeoBernazzoli/streamingcomunity-tizenbrew` (con una sola `m` in `comunity`) è disponibile anche un repository di compatibilità con gli stessi file della versione 0.1.1. In quel caso prova prima a chiudere completamente e riaprire TizenBrew: non è necessario riscrivere il nome se il caricamento riesce. Il repository principale per le nuove installazioni è `leobernazzoli/sctv`.
-
-1. Nel gestore moduli seleziona la vecchia tessera Unknown Module e conferma la rimozione della sola voce non funzionante.
-2. Aggiungi un **modulo GitHub** con `leobernazzoli/sctv`, senza `gh/`, URL completo o spazi.
-3. Chiudi completamente e riapri TizenBrew. Se hai l'autoavvio, premi Freccia Su durante il caricamento per restare nel menu.
-4. Se compare ancora Unknown Module, riporta tutta la descrizione della tessera, soprattutto il percorso `gh/...` oppure `npm/...`, e la versione di TizenBrew.
-
-Per provare una versione fissa puoi aggiungere `leobernazzoli/sctv@v0.1.1`. Questo usa un indirizzo CDN distinto e riduce l'ambiguità della cache; non risolve eventuali errori di rete della TV.
+Riferimento: [formato dei moduli TizenBrew](https://github.com/reisxd/TizenBrew/blob/main/docs/MODULES.md).

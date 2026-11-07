@@ -1,7 +1,7 @@
 {
   "name": "sctv",
-  "version": "0.1.1",
-  "description": "Modulo TizenBrew non ufficiale con navigazione da telecomando per StreamingCommunity.",
+  "version": "0.2.0",
+  "description": "Interfaccia TV per StreamingCommunity: catalogo, ricerca, lista personale, stagioni ed episodi.",
   "repository": {
     "type": "git",
     "url": "https://github.com/LeoBernazzoli/sctv.git"
@@ -26,7 +26,9 @@
     "README.md"
   ],
   "scripts": {
-    "check": "node --check src/tv.js",
+    "build": "node scripts/build.cjs",
+    "check": "node scripts/build.cjs && node --check src/tv.js",
+    "pretest": "node scripts/build.cjs",
     "test": "node --test test/*.test.cjs"
   },
   "devDependencies": {
