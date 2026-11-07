@@ -1,26 +1,10 @@
-SC TV 0.2.3 — verifica del 7 novembre 2026
+SC TV 0.3.0 / SC TV Auto 1.0.0 — 7 novembre 2026
 
-Build autonomo src/tv.js: generato.
-Sintassi JavaScript: controllo superato.
-Test automatici DOM/eventi: 34 superati, 0 falliti.
-Dati reali del sito, analizzati offline senza eseguirne gli script:
-- Home: 70 schede.
-- Dettagli serie: 2 stagioni e 6 episodi.
-- Ricerca: 31 risultati.
+Build e controllo sintassi: superati.
+Test automatici: 44 superati, 0 falliti (inclusi 10 test del caricatore automatico).
+Verificati: scelta di una versione nuova con lo stesso ingresso, controllo cache, ripiego sulla versione disponibile, conferma del servizio prima della navigazione, errori/retry e rifiuto di metadati non validi.
+Prova locale sul gestore messaggi reale del servizio TizenBrew: passaggio di modulo e conferma riusciti; nessuna scrittura all'elenco dei moduli installati.
 
-Le API TV del sito hanno richiesto accesso (401/403); non vengono usate.
-Il catalogo usa i dati JSON incorporati nelle normali pagine pubbliche.
-La riproduzione apre il lettore originale del sito.
-
-Verifica visuale nel browser non disponibile.
-Rendering, tastiera nativa, telecomando e riproduzione su Samsung TV non verificati.
-
-Fallback Watch per browser senza script a moduli: 4 test aggiuntivi superati (montaggio iframe, browser moderni, login richiesto, indirizzi estranei).
-Target indicato: Samsung UE49MU6500, anno 2017, Tizen 3.0 / Chromium 47.
-La riproduzione sul dispositivo resta da verificare.
-
-5 test aggiuntivi superati: pannello diagnostico, verifica di origine e finestra dei messaggi, comandi nel frame, esclusione di URL/token dai messaggi, rifiuto di provenienze estranee.
-Il nuovo focus e il controllo media non costituiscono una verifica della riproduzione sulla TV.
-
-5 test aggiuntivi superati: accesso al pannello tramite D-pad, apertura automatica dopo 8 secondi, inoltro dei comandi senza video, identificazione di API mancanti senza dati sensibili, uscita dal fullscreen con Return.
-Il blocco video segnalato su UE49MU6500 non è ancora risolto.
+Il caricatore non esegue JavaScript scaricato con eval: fa avviare il modulo corretto a TizenBrew.
+Primo avvio e aggiornamenti sulla TV fisica: da confermare.
+Riproduzione su Samsung UE49MU6500: ancora bloccata e in diagnosi.

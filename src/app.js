@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var HOME_URL = 'https://streamingcommunityz.boo/en';
-  var VERSION = '0.2.3';
+  var VERSION = '0.3.0';
   var CSS = /*__SC_TV_CSS__*/ "";
   var homeLink = document.createElement('a');
   homeLink.href = HOME_URL;
@@ -17,6 +17,7 @@
   if (location.hostname !== homeLink.hostname || window.top !== window.self || window.__scTV) return;
   window.__scTV = { version: VERSION, mode: 'starting' };
   var origin = homeLink.protocol + '//' + homeLink.host;
+  var AUTO_URL = 'http://127.0.0.1:8081/module/gh%2Fleobernazzoli%2Fsctv%40a/launcher/index.html';
   var locale = (location.pathname.match(/^\/(en|it)(\/|$)/) || [null, 'en'])[1];
   var cdn = 'https://cdn.streamingcommunityz.boo';
   var root, content, notice, loading, overlay, style;
@@ -507,7 +508,7 @@
       '<p>In Cerca usa la tastiera della TV; Return esce dal campo di testo.</p>' +
       '<p>La riproduzione usa il lettore del sito. Nel lettore, il tasto blu torna al catalogo quando la pagina riceve il comando.</p>' +
       '<div class="sc-actions"><button class="sc-action sc-primary" data-help="close">Continua</button><button class="sc-action" data-help="original">Sito originale</button>' +
-      '<button class="sc-action" data-help="exit">Esci</button></div></section>';
+      '<button class="sc-action" data-help="update">Aggiorna</button><button class="sc-action" data-help="exit">Esci</button></div></section>';
     root.appendChild(overlay); modalOpen = true;
     rows = []; var row = addRow();
     wire(overlay.querySelector('[data-help="close"]'), row, 'help-close', closeHelp);
@@ -517,6 +518,7 @@
       window.removeEventListener('keydown', onKey, true);
       window.__scTV.mode = 'original';
     });
+    wire(overlay.querySelector('[data-help="update"]'), row, 'help-update', function () { window.location.assign(AUTO_URL); });
     wire(overlay.querySelector('[data-help="exit"]'), row, 'help-exit', function () {
       try { window.tizen.application.getCurrentApplication().exit(); }
       catch (e) { if (history.length > 1) history.back(); else closeHelp(); }

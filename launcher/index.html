@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SC TV Auto</title>
+  <style>
+    html,body{margin:0;height:100%;background:#090b10;color:#f5f6f8;font-family:Arial,Helvetica,sans-serif}
+    main{position:absolute;left:9%;right:9%;top:22%;max-width:1450px}
+    .brand{font-size:64px;font-weight:900;color:#ff3348;letter-spacing:-3px}.brand span{color:#fff;font-size:34px;letter-spacing:1px;margin-left:15px}
+    h1{font-size:44px;margin:34px 0 24px}p{font-size:29px;line-height:1.6;color:#b9c1d2;margin:12px 0}
+    button{font:700 29px Arial,sans-serif;padding:18px 32px;margin-top:28px;border:0;border-radius:10px;background:#f5f6f8;color:#111522}
+    button:focus{outline:4px solid white;outline-offset:6px}button[hidden]{display:none}
+    small{display:block;font-size:23px;color:#78859d;margin-top:30px}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">SC<span>TV Auto</span></div>
+    <h1 id="title">Apertura di SC TV</h1>
+    <p id="status" role="status">Controllo della versione disponibile…</p>
+    <p id="detail">Gli aggiornamenti vengono cercati a ogni avvio.</p>
+    <button id="retry" type="button" hidden>Riprova</button>
+    <small>Questa voce resta sempre la stessa. La versione effettiva è nel menu di SC TV.</small>
+    <a id="launch" hidden></a>
+  </main>
+  <script src="auto.js"></script>
+</body>
+</html>

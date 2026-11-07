@@ -1,19 +1,23 @@
 # SC TV — TizenBrew
 
-Versione **0.2.3**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
+Versione applicazione **0.3.0**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
 
-## Installazione e aggiornamento
+## Installazione una volta sola: SC TV Auto
 
 1. In TizenBrew scegli **Aggiungi modulo GitHub / Add GitHub Module**.
-2. Inserisci **`leobernazzoli/sctv@r5`**. Il suffisso breve fissa la versione 0.2.3 e usa una nuova chiave di cache.
-3. Conferma con Fine/Done e lascia il campo di testo. L'aggiunta avviene senza una schermata di installazione.
-4. Chiudi completamente e riapri TizenBrew; avvia **SC TV (0.2.3)** dalla schermata principale.
+2. Inserisci **`leobernazzoli/sctv@a`**. La `a` identifica l'ingresso automatico stabile.
+3. Conferma con Fine/Done e lascia il campo di testo; chiudi completamente e riapri TizenBrew.
+4. D'ora in poi avvia sempre **SC TV Auto**.
 
-Se compare ancora 0.1.1, aggiungi una nuova voce con `leobernazzoli/sctv@r5` e chiudi completamente TizenBrew prima di riaprirlo. La voce senza suffisso può mantenere una copia precedente nella cache della TV o della CDN. La versione è visibile anche nel menu Info/blu. Se compare ancora 0.1.x, la CDN o TizenBrew possono avere una copia precedente; in alternativa aggiungi `leobernazzoli/sctv@v0.2.3` per usare una versione fissata.
+Serve una sola nuova aggiunta per chi ha installato le vecchie voci `@r3`, `@r4` o `@r5`: quelle restano versioni fissate e non possono diventare il nuovo caricatore tramite un aggiornamento del repository. Non è necessario modificarle per usare la nuova voce.
 
-È mantenuta anche la copia di compatibilità `LeoBernazzoli/streamingcomunity-tizenbrew`, con una sola `m` in `comunity`, per le TV dove quel nome è già stato salvato. Il repository principale è [leobernazzoli/sctv](https://github.com/LeoBernazzoli/sctv).
+**Gli aggiornamenti dell'app non richiedono più di cambiare il nome del modulo.** A ogni apertura, SC TV Auto legge il canale aggiornamenti e fa avviare a TizenBrew la versione disponibile. Nel menu Info/blu dell'app c'è anche **Aggiorna**, per ripetere il controllo senza digitare nulla. Se il controllo di rete fallisce, il caricatore usa l'ultima versione selezionata valida, oppure la versione iniziale 0.3.0.
 
-Serve TizenBrew installato e funzionante. Questo è un modulo `mods`, non un'app WGT autonoma. I file compilati sono già nel repository: non devi compilare nulla per usarlo sulla TV.
+La tessera di TizenBrew si chiama **SC TV Auto (1.0.0)**: 1.0.0 è la versione del piccolo caricatore stabile. **La versione effettiva dell'app si legge nel menu Info di SC TV** e può aumentare senza cambiare quella tessera.
+
+Il caricatore usa una pagina locale servita da TizenBrew, un file `update.json` nel repository e il normale passaggio di modulo del servizio TizenBrew. Non esegue codice scaricato tramite eval e non modifica l'elenco dei moduli installati. I file dell'app sono caricati da riferimenti di versione immutabili, così la cache di una vecchia versione non viene riutilizzata per una versione nuova.
+
+Repository principale: [leobernazzoli/sctv](https://github.com/LeoBernazzoli/sctv). Serve TizenBrew installato e funzionante. È un modulo, non un'app WGT autonoma. I file necessari sono già pubblicati.
 
 ## Cosa cambia dalla versione 0.1
 
@@ -76,7 +80,7 @@ L'indirizzo iniziale resta quello fornito: `https://streamingcommunityz.boo/en`.
 
 ## Verifiche
 
-- 34 test automatici: navigazione, ricerca, dettagli, stagioni, link episodi, lista personale, errori HTTP, annullamento delle richieste, sicurezza del rendering e ridimensionamento.
+- 44 test automatici: navigazione, ricerca, dettagli, stagioni, link episodi, lista personale, errori HTTP, annullamento delle richieste, sicurezza del rendering e ridimensionamento.
 - Integrazione offline con i dati reali del sito: 70 schede in home, 2 stagioni, 6 episodi e 31 risultati di ricerca caricati correttamente. Gli script del sito non sono stati eseguiti in questa prova.
 - Il browser collegato non era disponibile per la verifica visuale. Rendering sulla TV, tastiera nativa, telecomando fisico e riproduzione restano da verificare.
 
@@ -108,4 +112,10 @@ Se il player esterno continua a segnalare assenza di video per almeno 8 secondi,
 
 Quando non esiste un video, le frecce e OK vengono inoltrati alla pagina dei controlli: Destra/Giù seleziona Info lettore, Sinistra/Su seleziona Catalogo, OK attiva la selezione. Con il pannello aperto, Su/Giù scorre il testo e OK/Return lo chiude. Return torna al catalogo quando il pannello è chiuso; prima esce dal fullscreen se attivo nel player. I campi di testo e i pulsanti nativi del player mantengono i propri comandi.
 
-Per questa versione aggiungi `leobernazzoli/sctv@r5`, avvia **SC TV (0.2.3)** e attendi circa 10 secondi dopo aver aperto il film. Se la diagnostica appare, basta una foto del pannello. **Il blocco della riproduzione rimane da risolvere**: questa modifica rende disponibili i controlli e le osservazioni necessari, senza certificare il player.
+Avvia la versione più recente da **SC TV Auto** e attendi circa 10 secondi dopo aver aperto il film. Se la diagnostica appare, basta una foto del pannello. **Il blocco della riproduzione rimane da risolvere**: questa modifica rende disponibili i controlli e le osservazioni necessari, senza certificare il player.
+
+## Pubblicazione degli aggiornamenti
+
+Il riferimento `@a` è il caricatore stabile e non va spostato. Le nuove versioni dell'app vengono pubblicate con un nuovo tag e selezionate tramite `update.json`. Vedi [PUBLISHING.md](PUBLISHING.md) per l'ordine di pubblicazione e il ripristino di una versione precedente.
+
+Il caricatore supera 10 test dedicati; la suite completa ne contiene 44. È stato verificato anche il passaggio dei messaggi usando il gestore reale del servizio TizenBrew in una prova locale. Il primo avvio e l'aggiornamento sulla TV fisica restano da confermare. Il blocco della riproduzione segnalato su UE49MU6500 rimane in diagnosi: l'aggiornamento automatico non è una certificazione del player.
