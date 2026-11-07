@@ -8,7 +8,7 @@
   // TizenBrew also injects into frames and other execution contexts.
   if (location.hostname !== home.hostname || window.top !== window.self) return;
   if (window.__scTV) return;
-  window.__scTV = { version: '0.1.0' };
+  window.__scTV = { version: '0.1.1' };
 
   var selector = 'a[href],button,input:not([type="hidden"]),textarea,select,' +
     '[role="button"],[role="link"],[role="tab"],[tabindex],[contenteditable="true"],iframe,video[controls]';
