@@ -355,3 +355,14 @@ test('parent diagnostics name the native TV player',async t=>{
  w.dispatchEvent(new w.MessageEvent('message',{origin:'https://vixcloud.cc',source:inner.querySelector('iframe').contentWindow,data:{type:'sctv-player-state',stage:'loading',engine:'native-hls'}}));
  key(457);assert.match(d.querySelector('#sc-tv-player-diagnostics').textContent,/video nativo della TV/);
 });
+
+test('embedded helper detaches the anti-debugger loop before it can pause the TV browser',async t=>{
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true});
+ const d=child.document;
+ const trap=d.createElement('script');trap.textContent='function check(){debugger;}check();';
+ const normal=d.createElement('script');normal.textContent='window.ok=1;';
+ d.body.appendChild(trap);d.body.appendChild(normal);
+ await new Promise(r=>child.setTimeout(r,0));
+ assert.equal(trap.parentNode,null);assert.equal(trap.type,'javascript/blocked');
+ assert.equal(normal.parentNode,d.body);assert.equal(child.__scTVFrame.disarmed,1);
+});

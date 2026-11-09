@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var HOME_URL = 'https://streamingcommunityz.boo/en';
-  var VERSION = '0.3.2';
+  var VERSION = '0.3.3';
   var CSS = /*__SC_TV_CSS__*/ "";
   var homeLink = document.createElement('a');
   homeLink.href = HOME_URL;
@@ -131,9 +131,37 @@
     return video;
   }
 
+  // TizenBrew attaches to the TV browser with Debugger.enable(). The embed page
+  // runs an anti-devtools loop (`debugger` every 111 ms): with a debugger
+  // attached it pauses the whole renderer forever and only the CSS spinner
+  // keeps turning. TizenBrew evaluates this module when the frame context is
+  // created, before the parser reaches that inline script, so it can be
+  // detached from the document before it runs.
+  function disarmDebuggerTrap() {
+    function neutralise(node) {
+      if (!node || node.tagName !== 'SCRIPT' || node.src || node.type === 'javascript/blocked' || !/\bdebugger\b/.test(node.textContent || '')) return;
+      node.type = 'javascript/blocked';
+      if (node.parentNode) node.parentNode.removeChild(node);
+      window.__scTVFrame.disarmed = (window.__scTVFrame.disarmed || 0) + 1;
+    }
+    if (!window.MutationObserver) return;
+    var observer = new window.MutationObserver(function (records) {
+      for (var i = 0; i < records.length; i++) {
+        for (var j = 0; j < records[i].addedNodes.length; j++) {
+          var added = records[i].addedNodes[j];
+          if (added.nodeType === 1) neutralise(added);
+          else if (added.nodeType === 3) neutralise(added.parentNode);
+        }
+      }
+    });
+    observer.observe(document, {childList:true, subtree:true});
+    window.addEventListener('load', function () { observer.disconnect(); });
+  }
+
   function observePlayerFrame() {
     if (window.__scTVFrame) return;
     window.__scTVFrame = {version:VERSION};
+    disarmDebuggerTrap();
     var nativeVideo = null;
     window.__scTVFrame.engine = 'site';
     function startNative() {

@@ -1,6 +1,6 @@
 {
   "name": "sctv",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Interfaccia TV per StreamingCommunity: catalogo, ricerca, lista personale, stagioni ed episodi.",
   "repository": {
     "type": "git",

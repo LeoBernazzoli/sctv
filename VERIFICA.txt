@@ -1,10 +1,12 @@
-SC TV 0.3.2 / SC TV Auto 1.0.0 — 9 novembre 2026
+SC TV 0.3.3 / SC TV Auto 1.0.0 — 9 novembre 2026
 
-Causa del blocco su UE49MU6500: JW Player 8.36.4 (funzioni async, ES2017) e il bundle vixcloud (operatore ??, ES2020) non sono analizzabili da Chromium 47; nessun player viene creato.
-Correzione: nel frame vixcloud, se jwplayer manca, la master playlist HLS della pagina viene riprodotta con il <video> nativo della TV.
+Causa della rotella infinita: TizenBrew attiva Debugger.enable; lo script anti-debug della pagina vixcloud (debugger ogni 111 ms) mette in pausa tutto il renderer della TV.
+Correzione 0.3.3: lo script inline con `debugger` viene staccato dal documento prima dell'esecuzione (MutationObserver).
+Correzione 0.3.2 (mantenuta): JW Player non è analizzabile da Chromium 47; la playlist HLS viene riprodotta con il <video> nativo.
 
-Build e controllo sintassi: superati. Il bundle src/tv.js è analizzabile come ES5.
-Test automatici: 52 superati, 0 falliti (5 nuovi per il lettore nativo).
-Prova live dell'indirizzo costruito: HTTP 200, application/vnd.apple.mpegurl, H.264 720p/480p + AAC, audio ITA/ENG separato.
+Build e controllo sintassi: superati; bundle ES5.
+Test automatici: 53 superati, 0 falliti.
+Prova in Chromium reale: script trappola non eseguito, altri script eseguiti normalmente.
+Prova live della playlist: HTTP 200, H.264 720p/480p + AAC.
 
 Riproduzione sulla TV fisica: da confermare.

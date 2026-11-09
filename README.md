@@ -1,6 +1,6 @@
 # SC TV — TizenBrew
 
-Versione applicazione **0.3.2**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
+Versione applicazione **0.3.3**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
 
 ## Installazione una volta sola: SC TV Auto
 
@@ -137,3 +137,9 @@ Dalla 0.3.2, quando nel frame vixcloud `jwplayer` non è disponibile, il modulo 
 Comandi nel lettore nativo: OK o Play/Pausa, Sinistra/Destra o Avanti/Indietro per 10 secondi, Return per il catalogo, Info per la diagnostica. La barra in basso mostra titolo, tempo e stato e si nasconde dopo 4 secondi di riproduzione. La lingua dell'audio predefinita segue la lingua del sito (IT/EN nel menu). Selezione manuale di audio, sottotitoli e qualità non è ancora disponibile.
 
 Il pannello diagnostico indica **Lettore: video nativo della TV** quando è attivo. Riproduzione, audio alternativo e avanzamento sulla TV fisica restano da confermare.
+
+## Rotella infinita: trappola anti-debug (0.3.3)
+
+**Seconda causa, che bloccava tutto.** TizenBrew si collega al browser della TV con il debugger di Chrome attivo (`Debugger.enable`). La pagina vixcloud contiene uno script anti-strumenti-sviluppatore che esegue `debugger` ogni 111 ms. Con un debugger collegato, il browser si ferma su quell'istruzione e nessuno lo fa ripartire. Sul modello 2017 tutti i frame condividono lo stesso thread, quindi si fermano anche la pagina SC TV, il pannello di emergenza e il video nativo della 0.3.2. Resta solo l'animazione CSS della rotella.
+
+Dalla 0.3.3, nel frame vixcloud, uno MutationObserver stacca dal documento gli script inline che contengono `debugger` prima che il parser li esegua. TizenBrew valuta il modulo alla creazione del contesto del frame, prima che il parser arrivi in fondo alla pagina. Verificato in Chromium: lo script con `debugger` non viene eseguito e gli altri script della pagina sì. Sulla TV fisica resta da confermare.
