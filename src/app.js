@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var HOME_URL = 'https://streamingcommunityz.boo/en';
-  var VERSION = '0.3.1';
+  var VERSION = '0.3.2';
   var CSS = /*__SC_TV_CSS__*/ "";
   var homeLink = document.createElement('a');
   homeLink.href = HOME_URL;
@@ -31,9 +31,115 @@
     return names.indexOf(value) === -1 ? '' : value;
   }
 
+  function queryValue(name) {
+    var parts = location.search.replace(/^\?/, '').split('&');
+    for (var i = 0; i < parts.length; i++) {
+      var pair = parts[i].split('=');
+      try {
+        if (decodeURIComponent(pair[0] || '') === name) return decodeURIComponent(pair.slice(1).join('=').replace(/\+/g, ' '));
+      } catch (e) { return ''; }
+    }
+    return '';
+  }
+  function decodeTitle(value) {
+    if (!value) return '';
+    try { return decodeURIComponent(escape(window.atob(value))); } catch (e) { return ''; }
+  }
+  // Same master playlist address the site's own player script builds from the
+  // page data. It stays inside this frame and is never reported to the parent.
+  function nativeStreamAddress() {
+    var master = window.masterPlaylist;
+    if (!master || typeof master.url !== 'string' || !/^https:\/\/vixcloud\.cc\/playlist\/[0-9]+$/.test(master.url)) return '';
+    var params = [], source = master.params && typeof master.params === 'object' ? master.params : {};
+    Object.keys(source).forEach(function (name) {
+      if (source[name]) params.push(encodeURIComponent(name) + '=' + encodeURIComponent(source[name]));
+    });
+    if (queryValue('canPlayFHD')) params.push('h=1');
+    if (queryValue('scz')) params.push('scz=1');
+    params.push('lang=' + encodeURIComponent(queryValue('lang') || 'en'));
+    return master.url + '?' + params.join('&');
+  }
+  function clock(seconds) {
+    if (!isFinite(seconds) || seconds < 0) return '--:--';
+    seconds = Math.floor(seconds);
+    var h = Math.floor(seconds / 3600), m = Math.floor(seconds / 60) % 60, s = seconds % 60;
+    return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  // JW Player 8.36 and the site's embed bundle use async functions and `??`:
+  // Chromium 47 (Tizen 3, 2017 TVs) rejects them with a SyntaxError, so no
+  // player is ever created. Tizen's own <video> element plays HLS natively.
+  function mountNativePlayer() {
+    if (typeof window.jwplayer === 'function' || document.getElementById('sc-tv-native')) return null;
+    var address = nativeStreamAddress();
+    if (!address) return null;
+    var css = document.createElement('style');
+    css.textContent = 'html,body{margin:0!important;background:#000!important;overflow:hidden!important;}' +
+      '#wrapper{display:none!important;}' +
+      '#sc-tv-native{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:2147483640;}' +
+      '#sc-tv-native-bar{position:fixed;left:0;right:0;bottom:0;padding:28px 4% 34px;z-index:2147483641;color:#fff;' +
+      'font:26px/1.4 Arial,sans-serif;background:linear-gradient(transparent,rgba(0,0,0,.85));}' +
+      '#sc-tv-native-bar[hidden]{display:none!important;}' +
+      '#sc-tv-native-title{font-size:34px;font-weight:bold;margin-bottom:10px;}' +
+      '#sc-tv-native-track{height:8px;background:rgba(255,255,255,.3);border-radius:4px;margin:12px 0;}' +
+      '#sc-tv-native-fill{height:8px;width:0;background:#e50914;border-radius:4px;}';
+    (document.head || document.documentElement).appendChild(css);
+    var video = document.createElement('video');
+    video.id = 'sc-tv-native';
+    video.preload = 'auto';
+    video.autoplay = true;
+    video.src = address;
+    var bar = document.createElement('div');
+    bar.id = 'sc-tv-native-bar';
+    var heading = document.createElement('div');
+    heading.id = 'sc-tv-native-title';
+    heading.textContent = decodeTitle(queryValue('t')) || (window.video && window.video.filename) || '';
+    var track = document.createElement('div'); track.id = 'sc-tv-native-track';
+    var fill = document.createElement('div'); fill.id = 'sc-tv-native-fill'; track.appendChild(fill);
+    var info = document.createElement('div');
+    bar.appendChild(heading); bar.appendChild(track); bar.appendChild(info);
+    var hideTimer = null;
+    function update() {
+      var duration = video.duration;
+      fill.style.width = (isFinite(duration) && duration > 0 ? Math.min(100, video.currentTime / duration * 100) : 0) + '%';
+      var status = video.error ? 'Errore video' : (video.paused ? 'In pausa' : (video.readyState < 3 ? 'Caricamento…' : ''));
+      info.textContent = clock(video.currentTime) + ' / ' + clock(duration) + (status ? '   ·   ' + status : '') +
+        '   ·   OK pausa · ◀ ▶ 10 s · Return catalogo';
+    }
+    video.__scTVShowBar = function () {
+      update(); bar.hidden = false;
+      window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(function () { if (!video.paused && !video.error) bar.hidden = true; }, 4000);
+    };
+    ['timeupdate','pause','playing','waiting','loadedmetadata','error'].forEach(function (name) {
+      video.addEventListener(name, function () {
+        if (!bar.hidden) update();
+        if (name === 'pause' || name === 'error') video.__scTVShowBar();
+      });
+    });
+    var minute = Number(queryValue('minute'));
+    if (minute > 0) {
+      var resume = function () {
+        video.removeEventListener('loadedmetadata', resume);
+        try { video.currentTime = minute * 60; } catch (e) {}
+      };
+      video.addEventListener('loadedmetadata', resume);
+    }
+    document.body.appendChild(video);
+    document.body.appendChild(bar);
+    video.__scTVShowBar();
+    try { video.focus(); } catch (e) {}
+    return video;
+  }
+
   function observePlayerFrame() {
     if (window.__scTVFrame) return;
     window.__scTVFrame = {version:VERSION};
+    var nativeVideo = null;
+    window.__scTVFrame.engine = 'site';
+    function startNative() {
+      nativeVideo = mountNativePlayer();
+      if (nativeVideo) { window.__scTVFrame.engine = 'native-hls'; report(true); }
+    }
     var video = null, scriptErrors = 0, blocked = false, lastReport = 0;
     var scriptErrorKind = '', missingFeature = '';
     var destination = homeLink.protocol + '//' + homeLink.host;
@@ -42,7 +148,7 @@
       var now = Date.now();
       if (!force && now - lastReport < 1000) return;
       lastReport = now;
-      var found = document.querySelector('video');
+      var found = nativeVideo || document.querySelector('video');
       if (found !== video) {
         video = found;
         if (video) {
@@ -56,7 +162,7 @@
         (!video.paused && video.currentTime > 0 ? 'playing' : (video.readyState >= 2 ? 'ready' : 'loading'))));
       window.top.postMessage({type:'sctv-player-state', version:VERSION, stage:stage, error:error,
         readyState:video ? Number(video.readyState) : 0, networkState:video ? Number(video.networkState) : 0,
-        scriptErrors:scriptErrors, scriptErrorKind:scriptErrorKind, missingFeature:missingFeature,
+        scriptErrors:scriptErrors, scriptErrorKind:scriptErrorKind, missingFeature:missingFeature, engine:nativeVideo ? 'native-hls' : 'site',
         modulesSupported:'noModule' in document.createElement('script'),
         moduleScripts:document.querySelectorAll('script[type="module"]').length}, destination);
       if (poll && now - started > 120000) window.clearInterval(poll);
@@ -83,6 +189,11 @@
       }
       var active = document.activeElement;
       if (active && (/^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) || active.isContentEditable)) return;
+      if (nativeVideo && !nativeVideo.error) {
+        nativeVideo.__scTVShowBar();
+        if (code === 37 || code === 39) code = code === 39 ? 417 : 412;
+        else if (code === 38 || code === 40) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+      }
       if ([27,10009].indexOf(code) !== -1 && (document.fullscreenElement || document.webkitFullscreenElement)) {
         var leaveFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
         if (leaveFullscreen) {
@@ -116,6 +227,10 @@
         report(true);
       } catch (e) { report(true); }
     }, true);
+    // Injected when the frame context is created: wait for the page data and
+    // for the site's player script to have run (or failed to parse).
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startNative);
+    else startNative();
     report(true);
     poll = window.setInterval(function () { report(false); },2000);
     window.addEventListener('pagehide',function () { window.clearInterval(poll); });
@@ -628,6 +743,7 @@
               if (!lastState) lines.push('Nessun dato ricevuto dal lettore esterno. Questo non identifica ancora la causa del blocco.');
               else {
                 lines.push(stageLabels[lastState.stage]);
+                lines.push('Lettore: ' + (lastState.nativeEngine ? 'video nativo della TV (JW Player del sito non compatibile con questo browser)' : 'lettore del sito'));
                 lines.push('Stato dati video: ' + lastState.readyState + ' / 4; stato rete: ' + lastState.networkState + ' / 3');
                 lines.push('Errore video: ' + (errorLabels[lastState.error] || 'nessuno segnalato'));
                 lines.push('Errori script rilevati: ' + lastState.scriptErrors);
@@ -686,7 +802,7 @@
               lastState = {stage:data.stage,error:bounded(data.error,4),readyState:bounded(data.readyState,4),networkState:bounded(data.networkState,3),
                 scriptErrors:bounded(data.scriptErrors,999),moduleScripts:bounded(data.moduleScripts,999),modulesSupported:data.modulesSupported === true,
                 scriptErrorKind:['SyntaxError','ReferenceError','TypeError','RangeError','ResourceError','Error'].indexOf(data.scriptErrorKind) === -1 ? '' : data.scriptErrorKind,
-                missingFeature:knownPlayerFeature(data.missingFeature)};
+                missingFeature:knownPlayerFeature(data.missingFeature), nativeEngine:data.engine === 'native-hls'};
               window.__scTV.player.lastState = lastState;
               if (lastState.stage === 'playing') window.clearTimeout(playerWatchdog);
               playerStatus.textContent = stageLabels[lastState.stage] + (lastState.error ? ' ' + errorLabels[lastState.error] + '.' : '') + ' Info per i dettagli.';

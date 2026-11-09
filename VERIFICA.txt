@@ -1,13 +1,10 @@
-SC TV 0.3.1 / SC TV Auto 1.0.0 — 7 novembre 2026
+SC TV 0.3.2 / SC TV Auto 1.0.0 — 9 novembre 2026
 
-Build e controllo sintassi: superati.
-Test automatici: 47 superati, 0 falliti (inclusi 10 test del caricatore automatico).
-Verificati: scelta di una versione nuova con lo stesso ingresso, controllo cache, ripiego sulla versione disponibile, conferma del servizio prima della navigazione, errori/retry e rifiuto di metadati non validi.
-Prova locale sul gestore messaggi reale del servizio TizenBrew: passaggio di modulo e conferma riusciti; nessuna scrittura all'elenco dei moduli installati.
+Causa del blocco su UE49MU6500: JW Player 8.36.4 (funzioni async, ES2017) e il bundle vixcloud (operatore ??, ES2020) non sono analizzabili da Chromium 47; nessun player viene creato.
+Correzione: nel frame vixcloud, se jwplayer manca, la master playlist HLS della pagina viene riprodotta con il <video> nativo della TV.
 
-Il caricatore non esegue JavaScript scaricato con eval: fa avviare il modulo corretto a TizenBrew.
-Primo avvio e aggiornamenti sulla TV fisica: da confermare.
-Riproduzione su Samsung UE49MU6500: ancora bloccata e in diagnosi.
+Build e controllo sintassi: superati. Il bundle src/tv.js è analizzabile come ES5.
+Test automatici: 52 superati, 0 falliti (5 nuovi per il lettore nativo).
+Prova live dell'indirizzo costruito: HTTP 200, application/vnd.apple.mpegurl, H.264 720p/480p + AAC, audio ITA/ENG separato.
 
-3 regressioni verificate: pannello di emergenza senza messaggi esterni, soppressione quando la riproduzione è segnalata, rispetto della chiusura manuale del pannello.
-La verifica fisica sulla TV e il blocco della riproduzione restano aperti.
+Riproduzione sulla TV fisica: da confermare.

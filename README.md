@@ -1,6 +1,6 @@
 # SC TV — TizenBrew
 
-Versione applicazione **0.3.1**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
+Versione applicazione **0.3.2**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
 
 ## Installazione una volta sola: SC TV Auto
 
@@ -54,7 +54,7 @@ Il formato è interno al sito, quindi può cambiare. Se il catalogo non è leggi
 
 ## Riproduzione e limiti
 
-**Il lettore video resta quello del sito.** Guarda ed episodi aprono le normali pagine `/en/watch/...` o `/it/watch/...`. Non vengono estratti playlist, token o chiavi; non viene aggiunto un lettore AVPlay indipendente.
+Guarda ed episodi aprono le normali pagine `/en/watch/...` o `/it/watch/...`. Sui browser moderni il lettore resta quello del sito. Sui browser che non riescono ad avviare JW Player (Tizen 3, vedi 0.3.2) il modulo riproduce la stessa playlist HLS che la pagina del lettore fornisce, con il `<video>` nativo della TV, all'interno dello stesso frame: l'indirizzo e il token non vengono inviati altrove né mostrati nella diagnostica. Non viene aggiunto un lettore AVPlay.
 
 La nuova versione migliora catalogo e navigazione. Codec, audio, DRM, fullscreen, accesso al video e gestione dei tasti negli iframe dipendono ancora dal sito e dalla TV. Il tasto blu non può essere garantito quando il focus è dentro un iframe di un altro dominio.
 
@@ -127,3 +127,13 @@ Il pannello non dipende più soltanto dai messaggi del lettore esterno: un contr
 Il pulsante in alto mostra **Info lettore · 0.3.1**, così è possibile riconoscere la versione arrivata alla TV senza aprire il menu. L'apertura di emergenza tenta anche di uscire dal fullscreen per rendere visibile il pannello. Le frecce/OK del parent riconoscono sia i codici numerici sia i nomi dei tasti.
 
 Per riceverla basta chiudere e riaprire **SC TV Auto**, oppure usare Aggiorna nel menu dell'app. Non aggiungere nuove voci e non modificare `@a`. Se non compare il pannello, una foto dell'intero schermo permette di controllare anche la versione visualizzata. Il problema della riproduzione rimane da diagnosticare.
+
+## Riproduzione su Tizen 3 con il video nativo (0.3.2)
+
+**Causa del blocco individuata.** Il player vixcloud usa JW Player 8.36.4 e un bundle del sito scritti con funzioni `async` (ES2017) e con l'operatore `??` (ES2020). Chromium 47 dei Samsung 2017 li rifiuta con un SyntaxError: lo script non viene eseguito, `jwplayer` non esiste e nessun video viene creato. Per questo la rotella girava all'infinito e la diagnostica riportava l'assenza di video.
+
+Dalla 0.3.2, quando nel frame vixcloud `jwplayer` non è disponibile, il modulo costruisce lo stesso indirizzo della master playlist che lo script del sito costruirebbe (parametri della pagina, `scz`, `lang`, `h` se il sito lo richiede) e lo assegna a un `<video>` a schermo intero. Il motore della TV riproduce HLS direttamente. La playlist verificata il 9 novembre 2026 offre H.264 High 720p/480p con audio AAC, formati supportati dai modelli 2017.
+
+Comandi nel lettore nativo: OK o Play/Pausa, Sinistra/Destra o Avanti/Indietro per 10 secondi, Return per il catalogo, Info per la diagnostica. La barra in basso mostra titolo, tempo e stato e si nasconde dopo 4 secondi di riproduzione. La lingua dell'audio predefinita segue la lingua del sito (IT/EN nel menu). Selezione manuale di audio, sottotitoli e qualità non è ancora disponibile.
+
+Il pannello diagnostico indica **Lettore: video nativo della TV** quando è attivo. Riproduzione, audio alternativo e avanzamento sulla TV fisica restano da confermare.

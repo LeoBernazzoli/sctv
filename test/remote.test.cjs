@@ -226,7 +226,11 @@ function embeddedEnvironment(t,parentURL=config.websiteURL,options={}){
   const video=child.document.querySelector('video');let paused=true;
   if(video){Object.defineProperty(video,'paused',{get:()=>paused});
   video.play=()=>{paused=false;return Promise.resolve();};video.pause=()=>{paused=true;};}
-  child.eval(source);return {child,video,reports};
+  if(options.master)child.masterPlaylist=options.master;
+  if(options.jwplayer)child.jwplayer=()=>({});
+  child.eval(source);
+  if(child.document.readyState==='loading')child.document.dispatchEvent(new child.Event('DOMContentLoaded'));
+  return {child,video,reports};
 }
 test('embedded player media controls operate on the video without sending source URLs',t=>{
   const {child,video,reports}=embeddedEnvironment(t);
@@ -308,4 +312,46 @@ test('closing diagnostics manually suppresses the local recovery reopening',asyn
  const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
  const {d,key,localTimers}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2',captureWatchdog:true});
  key(457);key(10009);localTimers[0]();assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,true);
+});
+
+const master={url:'https://vixcloud.cc/playlist/2',params:{token:'secret-token',expires:'1794234852',asn:''}};
+test('Tizen 3 player: native video plays the site playlist when JW Player cannot start',t=>{
+ const {child,reports}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master});
+ const video=child.document.getElementById('sc-tv-native');assert.ok(video);
+ const src=new URL(video.getAttribute('src'));
+ assert.equal(src.origin+src.pathname,'https://vixcloud.cc/playlist/2');
+ assert.equal(src.searchParams.get('token'),'secret-token');assert.equal(src.searchParams.get('expires'),'1794234852');
+ assert.equal(src.searchParams.has('asn'),false);assert.equal(src.searchParams.get('lang'),'en');
+ assert.equal(child.__scTVFrame.engine,'native-hls');
+ assert.ok(reports.some(r=>r.data.engine==='native-hls'));
+ assert.equal(JSON.stringify(reports).includes('secret-token'),false);
+ assert.equal(JSON.stringify(reports).includes('playlist'),false);
+});
+test('Tizen 3 player: remote arrows seek and OK toggles the native video',t=>{
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master});
+ const video=child.document.getElementById('sc-tv-native');let paused=true;
+ Object.defineProperty(video,'paused',{get:()=>paused});video.play=()=>{paused=false;return Promise.resolve();};video.pause=()=>{paused=true;};
+ let time=100;Object.defineProperty(video,'currentTime',{get:()=>time,set:v=>{time=v;}});
+ Object.defineProperty(video,'duration',{value:1000});
+ Object.defineProperty(video,'seekable',{value:{length:1,start:()=>0,end:()=>1000}});
+ const press=code=>{const e=new child.KeyboardEvent('keydown',{keyCode:code,bubbles:true,cancelable:true});child.document.body.dispatchEvent(e);return e;};
+ press(13);assert.equal(paused,false);
+ assert.equal(press(39).defaultPrevented,true);assert.equal(time,110);
+ press(37);press(37);assert.equal(time,90);
+ press(13);assert.equal(paused,true);
+});
+test('Tizen 3 player: modern browsers keep the site JW Player',t=>{
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,jwplayer:true});
+ assert.equal(child.document.getElementById('sc-tv-native'),null);assert.equal(child.__scTVFrame.engine,'site');
+});
+test('Tizen 3 player: unexpected playlist addresses are not loaded',t=>{
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master:{url:'https://example.org/playlist/2',params:{}}});
+ assert.equal(child.document.getElementById('sc-tv-native'),null);
+});
+test('parent diagnostics name the native TV player',async t=>{
+ const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
+ const {w,d,key}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2'});
+ const inner=d.querySelector('#sc-tv-player iframe').contentWindow.document;inner.open();inner.write('<iframe src="https://vixcloud.cc/embed/2"></iframe>');inner.close();
+ w.dispatchEvent(new w.MessageEvent('message',{origin:'https://vixcloud.cc',source:inner.querySelector('iframe').contentWindow,data:{type:'sctv-player-state',stage:'loading',engine:'native-hls'}}));
+ key(457);assert.match(d.querySelector('#sc-tv-player-diagnostics').textContent,/video nativo della TV/);
 });
