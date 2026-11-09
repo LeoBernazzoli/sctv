@@ -2,8 +2,14 @@
 (function () {
   'use strict';
   var HOME_URL = 'https://streamingcommunityz.boo/en';
-  var VERSION = '0.3.3';
+  var VERSION = '0.4.0';
   var CSS = /*__SC_TV_CSS__*/ "";
+  // hls.js 1.5.20 ships an ES5 build that runs on Chromium 47 through MSE and
+  // exposes quality, audio and subtitle renditions. Pinned with SRI; loaded only
+  // inside the vixcloud player frame.
+  var HLS_URL = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js';
+  var HLS_INTEGRITY = 'sha384-V5ruNBgmYcC3SJRUQeNykAAAgde5gOFq/Hu0CZj7bygDP0yRIhkvX8+w0u/7mRvr';
+  var SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
   var homeLink = document.createElement('a');
   homeLink.href = HOME_URL;
   // TizenBrew injects in each frame. Observe only the player embedded by this site.
@@ -47,9 +53,9 @@
   }
   // Same master playlist address the site's own player script builds from the
   // page data. It stays inside this frame and is never reported to the parent.
-  function nativeStreamAddress() {
+  function streamAddress(base) {
     var master = window.masterPlaylist;
-    if (!master || typeof master.url !== 'string' || !/^https:\/\/vixcloud\.cc\/playlist\/[0-9]+$/.test(master.url)) return '';
+    if (!master || typeof base !== 'string' || !/^https:\/\/vixcloud\.cc\/playlist\/[0-9]+(\?[a-z]+=1)?$/.test(base)) return '';
     var params = [], source = master.params && typeof master.params === 'object' ? master.params : {};
     Object.keys(source).forEach(function (name) {
       if (source[name]) params.push(encodeURIComponent(name) + '=' + encodeURIComponent(source[name]));
@@ -57,7 +63,10 @@
     if (queryValue('canPlayFHD')) params.push('h=1');
     if (queryValue('scz')) params.push('scz=1');
     params.push('lang=' + encodeURIComponent(queryValue('lang') || 'en'));
-    return master.url + '?' + params.join('&');
+    return base + (base.indexOf('?') === -1 ? '?' : '&') + params.join('&');
+  }
+  function nativeStreamAddress() {
+    return window.masterPlaylist ? streamAddress(window.masterPlaylist.url) : '';
   }
   function clock(seconds) {
     if (!isFinite(seconds) || seconds < 0) return '--:--';
@@ -65,29 +74,46 @@
     var h = Math.floor(seconds / 3600), m = Math.floor(seconds / 60) % 60, s = seconds % 60;
     return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (s < 10 ? '0' : '') + s;
   }
+  function readPlayerPrefs() {
+    try {
+      var value = JSON.parse(window.localStorage.getItem('sctv-player'));
+      return value && typeof value === 'object' ? value : {};
+    } catch (e) { return {}; }
+  }
+  function savePlayerPrefs(prefs) {
+    try { window.localStorage.setItem('sctv-player', JSON.stringify(prefs)); } catch (e) {}
+  }
   // JW Player 8.36 and the site's embed bundle use async functions and `??`:
   // Chromium 47 (Tizen 3, 2017 TVs) rejects them with a SyntaxError, so no
-  // player is ever created. Tizen's own <video> element plays HLS natively.
+  // player is ever created. This replaces it with a TV player of our own.
   function mountNativePlayer() {
     if (typeof window.jwplayer === 'function' || document.getElementById('sc-tv-native')) return null;
-    var address = nativeStreamAddress();
-    if (!address) return null;
+    if (!nativeStreamAddress()) return null;
+    if (!Object.entries) Object.entries = function (o) { return Object.keys(o).map(function (k) { return [k, o[k]]; }); };
+    var prefs = readPlayerPrefs();
     var css = document.createElement('style');
     css.textContent = 'html,body{margin:0!important;background:#000!important;overflow:hidden!important;}' +
       '#wrapper{display:none!important;}' +
       '#sc-tv-native{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:2147483640;}' +
+      '#sc-tv-native::cue{font:44px/1.3 Arial,sans-serif;color:#fff;background:rgba(0,0,0,.65);}' +
       '#sc-tv-native-bar{position:fixed;left:0;right:0;bottom:0;padding:28px 4% 34px;z-index:2147483641;color:#fff;' +
       'font:26px/1.4 Arial,sans-serif;background:linear-gradient(transparent,rgba(0,0,0,.85));}' +
-      '#sc-tv-native-bar[hidden]{display:none!important;}' +
+      '#sc-tv-native-bar[hidden],#sc-tv-settings[hidden]{display:none!important;}' +
       '#sc-tv-native-title{font-size:34px;font-weight:bold;margin-bottom:10px;}' +
       '#sc-tv-native-track{height:8px;background:rgba(255,255,255,.3);border-radius:4px;margin:12px 0;}' +
-      '#sc-tv-native-fill{height:8px;width:0;background:#e50914;border-radius:4px;}';
+      '#sc-tv-native-fill{height:8px;width:0;background:#e50914;border-radius:4px;}' +
+      '#sc-tv-settings{position:fixed;right:4%;bottom:190px;width:820px;max-width:92%;box-sizing:border-box;z-index:2147483642;color:#fff;' +
+      'font:28px/1.4 Arial,sans-serif;background:rgba(16,20,30,.96);border:2px solid #5d6679;border-radius:14px;padding:22px 0 16px;}' +
+      '#sc-tv-settings h2{margin:0 30px 14px;font-size:32px;}#sc-tv-settings h2 small{font-size:20px;color:#9aa3b5;font-weight:normal;margin-left:12px;}' +
+      '.sc-tv-setting{display:block;overflow:hidden;padding:13px 30px;}' +
+      '.sc-tv-setting b{float:left;font-weight:normal;color:#c9cfdb;}.sc-tv-setting span{float:right;}' +
+      '.sc-tv-setting.sc-tv-selected{background:#fff;color:#000;}.sc-tv-setting.sc-tv-selected b{color:#000;}' +
+      '#sc-tv-settings p{margin:14px 30px 0;font-size:21px;color:#9aa3b5;}';
     (document.head || document.documentElement).appendChild(css);
     var video = document.createElement('video');
     video.id = 'sc-tv-native';
     video.preload = 'auto';
     video.autoplay = true;
-    video.src = address;
     var bar = document.createElement('div');
     bar.id = 'sc-tv-native-bar';
     var heading = document.createElement('div');
@@ -97,38 +123,260 @@
     var fill = document.createElement('div'); fill.id = 'sc-tv-native-fill'; track.appendChild(fill);
     var info = document.createElement('div');
     bar.appendChild(heading); bar.appendChild(track); bar.appendChild(info);
-    var hideTimer = null;
+    var panel = document.createElement('div');
+    panel.id = 'sc-tv-settings'; panel.hidden = true;
+    var player = {video:video, hls:null, engine:'', prefs:prefs, notice:''};
+    window.__scTVFrame.player = player;
+
+    var servers = [];
+    (Array.isArray(window.streams) ? window.streams : []).forEach(function (stream, i) {
+      if (stream && streamAddress(stream.url)) servers.push({name:String(stream.name || ('Server ' + (i + 1))), url:stream.url, active:stream.active === true});
+    });
+    var serverIndex = 0;
+    servers.forEach(function (s, i) { if (s.active) serverIndex = i; });
+    function currentAddress() { return servers.length ? streamAddress(servers[serverIndex].url) : nativeStreamAddress(); }
+
+    var hideTimer = null, selectedRow = 0, qualityChoice = -1, retried = false, recovered = false;
     function update() {
       var duration = video.duration;
       fill.style.width = (isFinite(duration) && duration > 0 ? Math.min(100, video.currentTime / duration * 100) : 0) + '%';
-      var status = video.error ? 'Errore video' : (video.paused ? 'In pausa' : (video.readyState < 3 ? 'Caricamento…' : ''));
+      var status = player.notice || (video.error ? 'Errore video' : (video.paused ? 'In pausa' : (video.readyState < 3 ? 'Caricamento…' : '')));
       info.textContent = clock(video.currentTime) + ' / ' + clock(duration) + (status ? '   ·   ' + status : '') +
-        '   ·   OK pausa · ◀ ▶ 10 s · Return catalogo';
+        '   ·   OK pausa · ◀ ▶ 10 s · ▲ ▼ impostazioni · Indietro esce';
     }
-    video.__scTVShowBar = function () {
+    function showBar() {
       update(); bar.hidden = false;
       window.clearTimeout(hideTimer);
-      hideTimer = window.setTimeout(function () { if (!video.paused && !video.error) bar.hidden = true; }, 4000);
-    };
+      hideTimer = window.setTimeout(function () {
+        if (!video.paused && !video.error && panel.hidden) { bar.hidden = true; player.notice = ''; }
+      }, 4000);
+    }
+    player.showBar = showBar;
     ['timeupdate','pause','playing','waiting','loadedmetadata','error'].forEach(function (name) {
       video.addEventListener(name, function () {
         if (!bar.hidden) update();
-        if (name === 'pause' || name === 'error') video.__scTVShowBar();
+        if (name === 'pause' || name === 'error') showBar();
       });
     });
-    var minute = Number(queryValue('minute'));
-    if (minute > 0) {
+    function applySpeed() {
+      var speed = SPEEDS.indexOf(Number(prefs.speed)) === -1 ? 1 : Number(prefs.speed);
+      video.defaultPlaybackRate = speed; video.playbackRate = speed;
+    }
+    video.addEventListener('loadedmetadata', applySpeed);
+    function play() {
+      try {
+        var started = video.play();
+        if (started && started.catch) started.catch(function () {});
+      } catch (e) {}
+    }
+
+    // Rendition helpers (hls.js only).
+    function levelOrder() {
+      var hls = player.hls, order = [];
+      if (!hls || !hls.levels) return order;
+      hls.levels.forEach(function (level, i) { order.push(i); });
+      order.sort(function (a, b) { return (hls.levels[b].height || 0) - (hls.levels[a].height || 0); });
+      return order;
+    }
+    function applyQualityPref() {
+      var hls = player.hls; if (!hls || !hls.levels) return;
+      // No saved choice: the best rendition offered (1080p when the site grants it).
+      var order = levelOrder(), pick = -1;
+      if (prefs.quality === 'auto') pick = -1;
+      else if (Number(prefs.quality) > 0) {
+        // The saved height, or the closest lower one (1080p chosen, only 720p offered).
+        order.forEach(function (i) { if (pick === -1 && (hls.levels[i].height || 0) <= Number(prefs.quality)) pick = i; });
+        if (pick === -1 && order.length) pick = order[order.length - 1];
+      } else if (order.length) pick = order[0];
+      qualityChoice = pick;
+      hls.currentLevel = pick;
+    }
+    function trackKey(t) { return String(t.lang || '') + '|' + String(t.name || ''); }
+    function applyAudioPref() {
+      var hls = player.hls; if (!hls || !hls.audioTracks || !prefs.audio) return;
+      hls.audioTracks.forEach(function (t, i) { if (String(t.lang || t.name) === prefs.audio && hls.audioTrack !== i) hls.audioTrack = i; });
+    }
+    function applySubtitlePref() {
+      var hls = player.hls; if (!hls || !hls.subtitleTracks || !prefs.subs) return;
+      if (prefs.subs === 'off') { hls.subtitleTrack = -1; return; }
+      hls.subtitleDisplay = true;
+      hls.subtitleTracks.forEach(function (t, i) { if (trackKey(t) === prefs.subs && hls.subtitleTrack !== i) hls.subtitleTrack = i; });
+    }
+
+    function destroyEngine() {
+      if (player.hls) { try { player.hls.destroy(); } catch (e) {} player.hls = null; }
+      video.removeAttribute('src');
+      try { video.load(); } catch (e) {}
+    }
+    function seekWhenReady(position) {
+      if (!(position > 0)) return;
       var resume = function () {
         video.removeEventListener('loadedmetadata', resume);
-        try { video.currentTime = minute * 60; } catch (e) {}
+        try { video.currentTime = position; } catch (e) {}
       };
       video.addEventListener('loadedmetadata', resume);
     }
+    function startNative(position) {
+      destroyEngine();
+      player.engine = 'native';
+      video.src = currentAddress();
+      seekWhenReady(position);
+      play();
+    }
+    function startHls(position) {
+      destroyEngine();
+      var Hls = window.Hls;
+      var hls = new Hls({enableWorker:true, startPosition:position > 0 ? position : -1, maxBufferLength:30,
+        maxBufferSize:40 * 1000 * 1000, backBufferLength:30, subtitleDisplay:prefs.subs !== 'off', renderTextTracksNatively:true});
+      player.hls = hls; player.engine = 'hls';
+      retried = false; recovered = false;
+      hls.on(Hls.Events.MANIFEST_PARSED, function () { applyQualityPref(); play(); });
+      hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, applyAudioPref);
+      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, applySubtitlePref);
+      hls.on(Hls.Events.LEVEL_SWITCHED, function () { if (!panel.hidden) renderPanel(); });
+      hls.on(Hls.Events.ERROR, function (event, data) {
+        if (!data || !data.fatal || player.hls !== hls) return;
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR && !retried) { retried = true; hls.startLoad(); return; }
+        if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !recovered) { recovered = true; hls.recoverMediaError(); return; }
+        // Keep watching: fall back to the TV's built-in HLS player.
+        var at = video.currentTime || position;
+        player.fellBack = true; player.notice = 'Lettore avanzato non disponibile: uso il lettore della TV';
+        startNative(at); showBar();
+      });
+      hls.loadSource(currentAddress());
+      hls.attachMedia(video);
+    }
+    function startEngine(position) {
+      if (prefs.engine === 'native') { startNative(position); return; }
+      function choose() {
+        // A resume position that arrived while hls.js was loading becomes the start position.
+        if (pendingResume > 0) {
+          position = pendingResume; pendingResume = 0;
+          player.notice = 'Ripreso da ' + clock(position) + ' · ricomincia dalle impostazioni';
+        }
+        if (window.Hls && typeof window.Hls.isSupported === 'function' && window.Hls.isSupported()) startHls(position);
+        else { player.fellBack = true; startNative(position); }
+      }
+      if (window.Hls) { choose(); return; }
+      var done = false, timer;
+      function finish() { if (done) return; done = true; window.clearTimeout(timer); choose(); }
+      var script = document.createElement('script');
+      script.src = HLS_URL; script.integrity = HLS_INTEGRITY; script.crossOrigin = 'anonymous';
+      script.onload = finish; script.onerror = finish;
+      timer = window.setTimeout(finish, 10000);
+      (document.head || document.documentElement).appendChild(script);
+    }
+    function restart() {
+      var at = video.currentTime;
+      if (player.engine === 'hls' && prefs.engine !== 'native' && window.Hls) startHls(at);
+      else startEngine(at);
+    }
+
+    // Settings rows, built from what the current stream actually offers.
+    function settingRows() {
+      var hls = player.hls, rows = [];
+      if (hls && hls.levels && hls.levels.length > 1) {
+        var order = levelOrder(), autoLabel = 'Auto';
+        if (qualityChoice === -1 && hls.levels[hls.currentLevel]) autoLabel += ' (' + hls.levels[hls.currentLevel].height + 'p)';
+        var options = [autoLabel];
+        order.forEach(function (i) { options.push((hls.levels[i].height || '?') + 'p'); });
+        rows.push({label:'Qualità', options:options, current:qualityChoice === -1 ? 0 : order.indexOf(qualityChoice) + 1, apply:function (n) {
+          qualityChoice = n === 0 ? -1 : order[n - 1];
+          prefs.quality = n === 0 ? 'auto' : hls.levels[qualityChoice].height;
+          hls.currentLevel = qualityChoice;
+        }});
+      }
+      if (hls && hls.audioTracks && hls.audioTracks.length > 1) {
+        rows.push({label:'Audio', options:hls.audioTracks.map(function (t) { return t.name || t.lang || 'Traccia'; }),
+          current:Math.max(0, hls.audioTrack), apply:function (n) { hls.audioTrack = n; prefs.audio = String(hls.audioTracks[n].lang || hls.audioTracks[n].name); }});
+      }
+      if (hls && hls.subtitleTracks && hls.subtitleTracks.length) {
+        rows.push({label:'Sottotitoli', options:['Disattivati'].concat(hls.subtitleTracks.map(function (t) { return t.name || t.lang || 'Sottotitoli'; })),
+          current:hls.subtitleTrack + 1, apply:function (n) {
+            if (n === 0) { hls.subtitleTrack = -1; prefs.subs = 'off'; }
+            else { hls.subtitleDisplay = true; hls.subtitleTrack = n - 1; prefs.subs = trackKey(hls.subtitleTracks[n - 1]); }
+          }});
+      }
+      rows.push({label:'Velocità', options:SPEEDS.map(function (s) { return s === 1 ? 'Normale' : String(s).replace('.', ',') + '×'; }),
+        current:Math.max(0, SPEEDS.indexOf(video.playbackRate)), apply:function (n) { prefs.speed = SPEEDS[n]; applySpeed(); }});
+      if (servers.length > 1) {
+        rows.push({label:'Server', options:servers.map(function (s) { return s.name; }), current:serverIndex,
+          apply:function (n) { serverIndex = n; restart(); }});
+      }
+      if (video.currentTime > 30) {
+        rows.push({label:'Ricomincia', options:['Premi OK per tornare all\'inizio'], current:0, action:function () {
+          try { video.currentTime = 0; } catch (e) {}
+          closePanel();
+        }});
+      }
+      rows.push({label:'Lettore', options:['Avanzato', 'TV (base)'], current:player.engine === 'native' ? 1 : 0, apply:function (n) {
+        prefs.engine = n === 1 ? 'native' : 'hls'; player.fellBack = false; startEngine(video.currentTime);
+      }});
+      return rows;
+    }
+    var currentRows = [];
+    function renderPanel() {
+      currentRows = settingRows();
+      if (selectedRow >= currentRows.length) selectedRow = currentRows.length - 1;
+      var html = '<h2>Impostazioni<small>SC TV ' + VERSION + '</small></h2>';
+      currentRows.forEach(function (row, i) {
+        html += '<div class="sc-tv-setting' + (i === selectedRow ? ' sc-tv-selected' : '') + '"><b>' + row.label + '</b><span>‹ ' +
+          String(row.options[row.current] || '').replace(/[&<>]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }) + ' ›</span></div>';
+      });
+      var hint = player.engine === 'native' ? 'Con il lettore TV (base) qualità, audio e sottotitoli non sono selezionabili.' :
+        (player.engine === 'hls' ? '' : 'Caricamento del lettore…');
+      html += '<p>' + (hint ? hint + '<br>' : '') + '▲ ▼ scegli · ◀ ▶ o OK cambia · Indietro chiude</p>';
+      panel.innerHTML = html;
+    }
+    function change(step) {
+      var row = currentRows[selectedRow]; if (!row) return;
+      if (row.action) { if (step === 1) row.action(); return; }
+      var next = (row.current + step + row.options.length) % row.options.length;
+      try { row.apply(next); } catch (e) {}
+      savePlayerPrefs(prefs);
+      renderPanel();
+    }
+    function openPanel() { selectedRow = 0; renderPanel(); panel.hidden = false; showBar(); }
+    function closePanel() { panel.hidden = true; showBar(); }
+    player.openPanel = openPanel;
+    var pendingResume = 0;
+    function applyResume() {
+      if (!(pendingResume > 0) || video.readyState < 1) return;
+      var at = pendingResume; pendingResume = 0;
+      if (video.currentTime > 15) return;
+      try { video.currentTime = at; } catch (e) {}
+      player.notice = 'Ripreso da ' + clock(at) + ' · ricomincia dalle impostazioni';
+      showBar();
+    }
+    video.addEventListener('loadedmetadata', applyResume);
+    player.resume = function (position) {
+      if (!(position > 0)) return;
+      pendingResume = position;
+      applyResume();
+    };
+    player.handleKey = function (code, repeat) {
+      if (!panel.hidden) {
+        if (code === 38) { selectedRow = Math.max(0, selectedRow - 1); renderPanel(); }
+        else if (code === 40) { selectedRow = Math.min(currentRows.length - 1, selectedRow + 1); renderPanel(); }
+        else if (code === 37) change(-1);
+        else if (code === 39 || code === 13) { if (!repeat || (code === 39 && !(currentRows[selectedRow] || {}).action)) change(1); }
+        else if (code === 27 || code === 10009 || code === 457) { if (!repeat) closePanel(); }
+        else return false;
+        return true;
+      }
+      if (code === 38 || code === 40 || code === 457) { if (!repeat) openPanel(); return true; }
+      showBar();
+      return false;
+    };
+    player.panelOpen = function () { return !panel.hidden; };
+
     document.body.appendChild(video);
     document.body.appendChild(bar);
-    video.__scTVShowBar();
+    document.body.appendChild(panel);
+    startEngine(Number(queryValue('minute')) * 60 || 0);
+    showBar();
     try { video.focus(); } catch (e) {}
-    return video;
+    return player;
   }
 
   // TizenBrew attaches to the TV browser with Debugger.enable(). The embed page
@@ -162,11 +410,11 @@
     if (window.__scTVFrame) return;
     window.__scTVFrame = {version:VERSION};
     disarmDebuggerTrap();
-    var nativeVideo = null;
+    var nativeVideo = null, nativePlayer = null;
     window.__scTVFrame.engine = 'site';
     function startNative() {
-      nativeVideo = mountNativePlayer();
-      if (nativeVideo) { window.__scTVFrame.engine = 'native-hls'; report(true); }
+      nativePlayer = mountNativePlayer();
+      if (nativePlayer) { nativeVideo = nativePlayer.video; window.__scTVFrame.engine = 'native-hls'; report(true); }
     }
     var video = null, scriptErrors = 0, blocked = false, lastReport = 0;
     var scriptErrorKind = '', missingFeature = '';
@@ -190,7 +438,9 @@
         (!video.paused && video.currentTime > 0 ? 'playing' : (video.readyState >= 2 ? 'ready' : 'loading'))));
       window.top.postMessage({type:'sctv-player-state', version:VERSION, stage:stage, error:error,
         readyState:video ? Number(video.readyState) : 0, networkState:video ? Number(video.networkState) : 0,
-        scriptErrors:scriptErrors, scriptErrorKind:scriptErrorKind, missingFeature:missingFeature, engine:nativeVideo ? 'native-hls' : 'site',
+        position:video && isFinite(video.currentTime) ? Math.floor(video.currentTime) : 0,
+        duration:video && isFinite(video.duration) ? Math.floor(video.duration) : 0,
+        scriptErrors:scriptErrors, scriptErrorKind:scriptErrorKind, missingFeature:missingFeature, engine:nativePlayer ? (nativePlayer.engine === 'hls' ? 'hlsjs' : 'native-hls') : 'site',
         modulesSupported:'noModule' in document.createElement('script'),
         moduleScripts:document.querySelectorAll('script[type="module"]').length}, destination);
       if (poll && now - started > 120000) window.clearInterval(poll);
@@ -210,6 +460,9 @@
     window.addEventListener('keydown', function (event) {
       var code = event.keyCode || {Enter:13,ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40,Escape:27,BrowserBack:10009,Info:457,ColorF3Blue:406}[event.key];
       if (event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
+      if (nativePlayer && !nativeVideo.error && nativePlayer.handleKey(code, event.repeat)) {
+        event.preventDefault(); event.stopImmediatePropagation(); report(true); return;
+      }
       if (code === 457 || code === 406) {
         event.preventDefault(); event.stopImmediatePropagation();
         if (!event.repeat) window.top.postMessage({type:'sctv-player-action',action:code === 457 ? 'diagnostics' : 'home'},destination);
@@ -217,11 +470,7 @@
       }
       var active = document.activeElement;
       if (active && (/^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) || active.isContentEditable)) return;
-      if (nativeVideo && !nativeVideo.error) {
-        nativeVideo.__scTVShowBar();
-        if (code === 37 || code === 39) code = code === 39 ? 417 : 412;
-        else if (code === 38 || code === 40) { event.preventDefault(); event.stopImmediatePropagation(); return; }
-      }
+      if (nativeVideo && !nativeVideo.error && (code === 37 || code === 39)) code = code === 39 ? 417 : 412;
       if ([27,10009].indexOf(code) !== -1 && (document.fullscreenElement || document.webkitFullscreenElement)) {
         var leaveFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
         if (leaveFullscreen) {
@@ -255,6 +504,11 @@
         report(true);
       } catch (e) { report(true); }
     }, true);
+    window.addEventListener('message', function (event) {
+      if (event.origin !== destination || event.source !== window.top || !event.data || event.data.type !== 'sctv-resume') return;
+      var position = Number(event.data.position);
+      if (nativePlayer && isFinite(position) && position > 0 && position < 86400) nativePlayer.resume(position);
+    });
     // Injected when the frame context is created: wait for the page data and
     // for the site's player script to have run (or failed to parse).
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startNative);
@@ -315,6 +569,69 @@
     saveStore(window.localStorage, 'sctv-list', favourites);
     render('detail-list');
     notify(inList(title.id) ? 'Aggiunto alla tua lista' : 'Rimosso dalla tua lista');
+  }
+  // Watch history, kept on this TV only (localStorage of the site origin).
+  // titles: most recent first; episodes: per-episode position for series.
+  var HISTORY_KEY = 'sctv-history';
+  function readHistory() {
+    var h = readStore(window.localStorage, HISTORY_KEY, null);
+    if (!h || typeof h !== 'object' || !Array.isArray(h.titles) || !h.episodes || typeof h.episodes !== 'object') h = {titles:[], episodes:{}};
+    h.titles = h.titles.filter(valid);
+    return h;
+  }
+  function saveHistory(h) {
+    h.titles = h.titles.slice(0, 40);
+    var keys = Object.keys(h.episodes);
+    if (keys.length > 600) {
+      keys.sort(function (a, b) { return (h.episodes[b].u || 0) - (h.episodes[a].u || 0); });
+      keys.slice(600).forEach(function (k) { delete h.episodes[k]; });
+    }
+    saveStore(window.localStorage, HISTORY_KEY, h);
+  }
+  function historyEntry(h, id) {
+    for (var i = 0; i < h.titles.length; i++) if (Number(h.titles[i].id) === Number(id)) return h.titles[i];
+    return null;
+  }
+  function finished(position, duration) { return duration > 0 && duration - position <= Math.max(90, duration * 0.04); }
+  function shortEpisode(e) {
+    return e ? {id:Number(e.id), number:e.number, name:String(e.name || ''), season:e.season || null} : null;
+  }
+  // Moves a title to the front of the history, merging the catalogue metadata.
+  function touchHistory(h, title, episode) {
+    var entry = historyEntry(h, title.id) || {id:Number(title.id)};
+    h.titles = h.titles.filter(function (t) { return Number(t.id) !== Number(title.id); });
+    entry.slug = title.slug || entry.slug || '';
+    entry.name = title.name || entry.name || 'Titolo';
+    entry.type = title.type || entry.type || '';
+    if (title.images && title.images.length) entry.images = title.images.slice(0, 6);
+    if (episode) {
+      var short = shortEpisode(episode);
+      if (!short.season && entry.episode && Number(entry.episode.id) === short.id) short.season = entry.episode.season;
+      entry.episode = short;
+    }
+    entry.updated = Date.now();
+    h.titles.unshift(entry);
+    return entry;
+  }
+  function episodeProgress(h, id) { return h.episodes[String(id)] || null; }
+  // The point to resume a title from, and what the continue row shows.
+  function continueTarget(entry, h) {
+    if (entry.type === 'tv' && entry.episode) {
+      var ep = episodeProgress(h, entry.episode.id);
+      if (ep && !ep.done && ep.p > 30) return {episode:entry.episode, p:ep.p, d:ep.d};
+      if (ep && ep.done && entry.next) return {episode:entry.next, p:0, d:0, next:true};
+      return null;
+    }
+    if (entry.type !== 'tv' && !entry.done && entry.p > 30) return {p:entry.p, d:entry.d};
+    return null;
+  }
+  function episodeLabel(e) {
+    return (e.season ? 'S' + e.season + ' · ' : '') + 'Episodio ' + e.number;
+  }
+  function remaining(p, d) {
+    if (!(d > 0)) return clock(p);
+    var minutes = Math.max(1, Math.round((d - p) / 60));
+    return minutes + ' min rimasti';
   }
   function parsePage(text) {
     var trimmed = text.replace(/^\s+/, '');
@@ -396,6 +713,11 @@
   function play(title, episode) {
     saveStore(window.sessionStorage, 'sctv-return', {path:state.path || '', kind:state.kind,
       focus:current && current.getAttribute('data-key')});
+    var h = readHistory();
+    var loaded = state.kind === 'detail' && state.page && state.page.props.loadedSeason;
+    var season = episode && (episode.season || (loaded && (loaded.episodes || []).some(function (e) { return Number(e.id) === Number(episode.id); }) ? loaded.number : null));
+    touchHistory(h, title, episode ? {id:episode.id, number:episode.number, name:episode.name, season:season} : null);
+    saveHistory(h);
     // The anchor performs normal navigation after this state has been saved.
   }
   function goHome(filter) {
@@ -488,26 +810,40 @@
       (details ? (title.type === 'tv' ? 'Serie TV' : 'Film') : 'In evidenza') + '</div>' +
       '<h1>' + esc(title.name) + '</h1><div class="sc-meta">' + meta(title) + '</div>' +
       '<p class="sc-description">' + esc(title.plot) + '</p><div class="sc-actions">' +
-      '<a class="sc-action sc-primary" data-hero="play" href="' + esc(watchURL(title)) + '">▶ &nbsp;Guarda</a>' +
+      heroPlayHTML(title) +
       '<button class="sc-action" data-hero="' + (details ? 'list' : 'details') + '">' +
       (details ? (inList(title.id) ? '✓ Nella mia lista' : '+ La mia lista') : 'ⓘ &nbsp;Dettagli') + '</button>' +
       '</div></div></section>';
   }
+  function heroPlayHTML(title) {
+    var h = readHistory(), entry = historyEntry(h, title.id), target = entry && continueTarget(entry, h);
+    if (target && target.episode) {
+      return '<a class="sc-action sc-primary" data-hero="play" href="' + esc(watchURL(title, target.episode)) + '">▶ &nbsp;' +
+        (target.next ? 'Prossimo: ' : 'Riprendi ') + esc(episodeLabel(target.episode)) + '</a>';
+    }
+    if (target) return '<a class="sc-action sc-primary" data-hero="play" href="' + esc(watchURL(title)) + '">▶ &nbsp;Riprendi da ' + esc(clock(target.p)) + '</a>';
+    return '<a class="sc-action sc-primary" data-hero="play" href="' + esc(watchURL(title)) + '">▶ &nbsp;Guarda</a>';
+  }
   function wireHero(title, details) {
     var row = addRow();
-    wire(root.querySelector('[data-hero="play"]'), row, 'hero-play', function () { play(title); });
+    wire(root.querySelector('[data-hero="play"]'), row, 'hero-play', function () {
+      var h = readHistory(), entry = historyEntry(h, title.id), target = entry && continueTarget(entry, h);
+      play(title, target && target.episode);
+    });
     var action = details ? 'list' : 'details';
     wire(root.querySelector('[data-hero="' + action + '"]'), row, details ? 'detail-list' : 'hero-details', function () {
       if (details) toggleList(title); else openTitle(title);
     });
   }
-  function cardHTML(title, key, rank) {
+  function cardHTML(title, key, rank, resume) {
     var art = picture(title, ['cover', 'cover_mobile', 'background', 'poster']);
+    var progress = resume && resume.progress > 0 ? Math.max(2, Math.min(100, Math.round(resume.progress * 100))) : 0;
     return '<button class="sc-card" data-card="' + esc(key) + '" aria-label="' + esc(title.name) + '">' +
       '<div class="sc-card-art">' + (art ? '<img src="' + esc(art) + '" alt="" loading="lazy">' : '') +
-      (rank ? '<span data-rank="' + rank + '">' + rank + '</span>' : '') + '</div>' +
+      (rank ? '<span data-rank="' + rank + '">' + rank + '</span>' : '') +
+      (progress ? '<i class="sc-progress"><i style="width:' + progress + '%"></i></i>' : '') + '</div>' +
       '<span class="sc-card-title">' + esc(title.name) + '</span><span class="sc-card-meta">' +
-      (title.type === 'tv' ? 'Serie TV' : 'Film') + (title.score ? ' · ' + esc(title.score) + ' / 10' : '') + '</span></button>';
+      (resume ? esc(resume.sub) : (title.type === 'tv' ? 'Serie TV' : 'Film') + (title.score ? ' · ' + esc(title.score) + ' / 10' : '')) + '</span></button>';
   }
   function wireCards(titles, prefix, grid) {
     var row;
@@ -533,6 +869,20 @@
     if (!valid(featured) || (filter !== 'all' && featured.type !== filter)) featured = lists[0] && lists[0].titles[0];
     state.hero = featured && normalise(featured);
     var html = state.hero ? heroHTML(state.hero, false) : '<div class="sc-titlebar"><h1>Catalogo</h1></div>';
+    var h = readHistory();
+    state.continueItems = [];
+    h.titles.forEach(function (entry) {
+      var target = continueTarget(entry, h);
+      if (target && (filter === 'all' || entry.type === filter) && state.continueItems.length < 20) state.continueItems.push({title:normalise(entry), target:target});
+    });
+    if (state.continueItems.length) {
+      html += '<section class="sc-row"><h2>Continua a guardare</h2><div class="sc-track">';
+      state.continueItems.forEach(function (item, i) {
+        var t = item.target, sub = t.episode ? (t.next ? 'Prossimo: ' : '') + episodeLabel(t.episode) + (t.next ? '' : ' · ' + remaining(t.p, t.d)) : remaining(t.p, t.d);
+        html += cardHTML(item.title, 'continue-' + i, 0, {sub:sub, progress:t.d > 0 ? t.p / t.d : 0});
+      });
+      html += '</div></section>';
+    }
     lists.forEach(function (s, r) {
       html += '<section class="sc-row"><h2>' + esc(s.label) + '</h2><div class="sc-track">';
       s.titles.forEach(function (t, i) { html += cardHTML(normalise(t), 's' + r + '-' + i, s.name === 'top10' ? i + 1 : 0); });
@@ -576,10 +926,14 @@
         html += '<button class="sc-season ' + (Number(s.id) === Number(loaded.id) ? 'sc-selected' : '') + '" data-season="' + i + '">Stagione ' + esc(s.number) + '</button>';
       });
       html += '</div><div class="sc-episodes">';
+      var history = readHistory();
       (loaded.episodes || []).forEach(function (e, i) {
-        html += '<a class="sc-episode" data-episode="' + i + '" href="' + esc(watchURL(title, e)) + '"><span class="sc-episode-number">' + esc(e.number) + '</span>' +
-          '<span class="sc-episode-copy">' + esc(e.name || ('Episodio ' + e.number)) + '<span>' + esc(e.plot || '') + '</span></span>' +
-          '<span>' + (e.duration ? esc(e.duration) + ' min' : '▶') + '</span></a>';
+        var seen = episodeProgress(history, e.id);
+        var status = seen && seen.done ? '✓ Visto' : (seen && seen.p > 30 ? remaining(seen.p, seen.d) : (e.duration ? esc(e.duration) + ' min' : '▶'));
+        var bar = seen && seen.d > 0 ? '<i class="sc-progress"><i style="width:' + (seen.done ? 100 : Math.max(2, Math.round(seen.p / seen.d * 100))) + '%"></i></i>' : '';
+        html += '<a class="sc-episode' + (seen && seen.done ? ' sc-watched' : '') + '" data-episode="' + i + '" href="' + esc(watchURL(title, e)) + '"><span class="sc-episode-number">' + esc(e.number) + '</span>' +
+          '<span class="sc-episode-copy">' + esc(e.name || ('Episodio ' + e.number)) + '<span>' + esc(e.plot || '') + '</span>' + bar + '</span>' +
+          '<span class="sc-episode-status">' + status + '</span></a>';
       });
       html += '</div>';
     }
@@ -618,6 +972,15 @@
     wireNav();
     if (state.kind === 'home') {
       if (state.hero) wireHero(state.hero, false);
+      if (state.continueItems.length) {
+        var continueRow = addRow();
+        state.continueItems.forEach(function (item, i) {
+          wire(root.querySelector('[data-card="continue-' + i + '"]'), continueRow, 'continue-' + i, function () {
+            play(item.title, item.target.episode);
+            window.location.assign(watchURL(item.title, item.target.episode));
+          });
+        });
+      }
       state.lists.forEach(function (s, i) { wireCards(s.titles, 's' + i + '-', false); });
     }
     if (state.kind === 'detail') wireDetails();
@@ -718,11 +1081,6 @@
             var playerStyle = document.createElement('style');
             playerStyle.textContent = '#sc-tv-player{position:fixed;top:0;right:0;bottom:0;left:0;background:black;z-index:2147483645;}' +
               '#sc-tv-player iframe{display:block;width:100%;height:100%;border:0;}' +
-              '#sc-tv-player-back{position:absolute;left:3%;top:3%;font:24px/1.4 Arial,sans-serif;padding:13px 22px;' +
-              'color:white;background:rgba(15,18,28,.9);border:2px solid #798295;border-radius:8px;z-index:1;}' +
-              '#sc-tv-player-back:focus,#sc-tv-player-info:focus{outline:4px solid white;}' +
-              '#sc-tv-player-info{position:absolute;right:3%;top:3%;font:24px/1.4 Arial,sans-serif;padding:13px 22px;color:white;background:#171c28;border:2px solid #798295;border-radius:8px;z-index:1;}' +
-              '#sc-tv-player-status{position:absolute;bottom:3%;left:3%;max-width:90%;font:23px/1.5 Arial,sans-serif;color:white;background:rgba(15,18,28,.92);padding:10px 18px;border-radius:8px;pointer-events:none;}' +
               '#sc-tv-player-diagnostics{position:absolute;left:8%;right:8%;top:17%;max-height:70%;overflow:auto;padding:30px;color:white;background:#141b29;border:2px solid #75819a;border-radius:12px;font:25px/1.6 Arial,sans-serif;white-space:pre-wrap;z-index:3;}' +
               '#sc-tv-player [hidden]{display:none!important;}' +
               'html.sc-tv-player-active,html.sc-tv-player-active body{margin:0!important;overflow:hidden!important;}' +
@@ -737,21 +1095,24 @@
             frame.setAttribute('webkitallowfullscreen', '');
             frame.setAttribute('allow', 'autoplay; fullscreen');
             playerRoot.appendChild(frame);
-            var returnButton = document.createElement('button');
-            returnButton.id = 'sc-tv-player-back';
-            returnButton.type = 'button';
-            returnButton.textContent = '‹ Catalogo';
-            returnButton.onclick = function () { window.location.assign(origin + '/' + locale); };
-            playerRoot.appendChild(returnButton);
-            var diagnosticButton = document.createElement('button');
-            diagnosticButton.id = 'sc-tv-player-info'; diagnosticButton.type = 'button'; diagnosticButton.textContent = 'Info lettore · ' + VERSION;
-            var playerStatus = document.createElement('div');
-            playerStatus.id = 'sc-tv-player-status';
-            playerStatus.textContent = 'Apertura lettore… Premi OK o Play per avviare. Info per la diagnosi.';
+            // Back leaves the player: return to the page that opened it (the
+            // title page, restored by the catalogue), or to the home page.
+            var leaving = false;
+            var leavePlayer = function () {
+              if (leaving) return;
+              leaving = true; window.__scTV.player.leaving = true;
+              var cameFromSite = false;
+              try { var previous = document.createElement('a'); previous.href = document.referrer; cameFromSite = previous.host === homeLink.host; } catch (e) {}
+              if (cameFromSite && window.history.length > 1) {
+                window.history.back();
+                window.setTimeout(function () { window.location.assign(origin + '/' + locale); }, 1500);
+              } else window.location.assign(origin + '/' + locale);
+            };
+            window.__scTV.player.leave = leavePlayer;
             var diagnosticPanel = document.createElement('div');
             diagnosticPanel.id = 'sc-tv-player-diagnostics'; diagnosticPanel.hidden = true;
             diagnosticPanel.setAttribute('role','dialog'); diagnosticPanel.setAttribute('aria-label','Diagnostica lettore');
-            var lastState = null, noVideoSince = null, automaticallyOpened = false, playerWatchdog = null;
+            var lastState = null, noVideoSince = null, automaticallyOpened = false, playerWatchdog = null, openedByRecovery = false;
             var stageLabels = { 'no-video':'Il lettore esterno non ha ancora creato un video.',
               'loading':'Video creato: attesa dei dati del film.', 'ready':'Dati video pronti: premi OK o Play nel lettore.',
               'playing':'Il lettore segnala una riproduzione in corso.', 'play-blocked':'Avvio non riuscito: premi OK o Play direttamente nel lettore.',
@@ -767,11 +1128,11 @@
             }
             function renderDiagnostics() {
               var lines = ['SC TV ' + VERSION + ' — stato del lettore'];
-              if (window.__scTV.player.diagnosticsReason === 'local-timeout') lines.push('Apertura di emergenza: riproduzione non confermata entro 12 secondi.');
+              if (window.__scTV.player.diagnosticsReason === 'local-timeout') lines.push('Apertura di emergenza: riproduzione non confermata entro 25 secondi.');
               if (!lastState) lines.push('Nessun dato ricevuto dal lettore esterno. Questo non identifica ancora la causa del blocco.');
               else {
                 lines.push(stageLabels[lastState.stage]);
-                lines.push('Lettore: ' + (lastState.nativeEngine ? 'video nativo della TV (JW Player del sito non compatibile con questo browser)' : 'lettore del sito'));
+                lines.push('Lettore: ' + (lastState.engine === 'hlsjs' ? 'SC TV avanzato (hls.js)' : (lastState.engine === 'native-hls' ? 'video nativo della TV' : 'lettore del sito')));
                 lines.push('Stato dati video: ' + lastState.readyState + ' / 4; stato rete: ' + lastState.networkState + ' / 3');
                 lines.push('Errore video: ' + (errorLabels[lastState.error] || 'nessuno segnalato'));
                 lines.push('Errori script rilevati: ' + lastState.scriptErrors);
@@ -789,10 +1150,9 @@
               else {
                 automaticallyOpened = true;
                 window.clearTimeout(playerWatchdog);
-                diagnosticButton.focus();
+                try { frame.blur(); document.body.focus(); } catch (e) {}
               }
             };
-            diagnosticButton.onclick = togglePlayerDiagnostics;
             handlePlayerKey = function (code) {
               if (!diagnosticPanel.hidden) {
                 if (code === 13 || code === 27 || code === 10009) togglePlayerDiagnostics();
@@ -800,16 +1160,41 @@
                 else if (code === 40) diagnosticPanel.scrollTop += 100;
                 return;
               }
-              if (code === 27 || code === 10009) { returnButton.click(); return; }
-              if (code === 37 || code === 38) { returnButton.focus(); return; }
-              if (code === 39 || code === 40) { diagnosticButton.focus(); return; }
-              if (code === 13) {
-                if (document.activeElement === returnButton) returnButton.click();
-                else togglePlayerDiagnostics();
-              }
+              if (code === 27 || code === 10009) { leavePlayer(); return; }
+              focusEmbeddedPlayer();
             };
-            playerRoot.appendChild(diagnosticButton); playerRoot.appendChild(playerStatus); playerRoot.appendChild(diagnosticPanel);
+            playerRoot.appendChild(diagnosticPanel);
             frame.onload = function () { focusEmbeddedPlayer(); };
+            // Watch history: what is playing, where to resume it, and saving progress.
+            var watching = valid(page.props.title) ? normalise(page.props.title) : null;
+            var watchingEpisode = watching && watching.type === 'tv' && page.props.episode && valid(page.props.episode) ? page.props.episode : null;
+            var nextEpisode = page.props.nextEpisode && valid(page.props.nextEpisode) ? shortEpisode(page.props.nextEpisode) : null;
+            var resumeSent = false, lastSaved = -1, lastProgress = null;
+            function resumePosition() {
+              if (!watching) return 0;
+              var h = readHistory(), entry = historyEntry(h, watching.id);
+              if (watchingEpisode) {
+                var ep = episodeProgress(h, watchingEpisode.id);
+                return ep && !ep.done && ep.p > 30 ? ep.p : 0;
+              }
+              return entry && !entry.done && entry.p > 30 ? entry.p : 0;
+            }
+            function saveProgress(position, duration) {
+              if (!watching || !(position > 0)) return;
+              var h = readHistory();
+              var entry = touchHistory(h, watching, watchingEpisode);
+              var done = finished(position, duration);
+              if (watchingEpisode) {
+                h.episodes[String(watchingEpisode.id)] = {p:position, d:duration, u:Date.now(), done:done};
+                if (nextEpisode) {
+                  if (nextEpisode.season === null && entry.episode) nextEpisode.season = entry.episode.season;
+                  entry.next = nextEpisode;
+                } else delete entry.next;
+              } else { entry.p = position; entry.d = duration; entry.done = done; }
+              saveHistory(h);
+              lastSaved = position;
+            }
+            window.__scTV.player.saveProgress = saveProgress;
             window.addEventListener('message',function (event) {
               if (event.origin !== 'https://vixcloud.cc' || !event.data || typeof event.data !== 'object') return;
               var recognised = false;
@@ -821,7 +1206,7 @@
               var data = event.data;
               if (data.type === 'sctv-player-action') {
                 if (data.action === 'diagnostics') togglePlayerDiagnostics();
-                if (data.action === 'home') returnButton.click();
+                if (data.action === 'home') window.location.assign(origin + '/' + locale);
                 if (data.action === 'navigate' && [13,27,37,38,39,40,10009].indexOf(data.key) !== -1) handlePlayerKey(data.key);
                 return;
               }
@@ -830,17 +1215,32 @@
               lastState = {stage:data.stage,error:bounded(data.error,4),readyState:bounded(data.readyState,4),networkState:bounded(data.networkState,3),
                 scriptErrors:bounded(data.scriptErrors,999),moduleScripts:bounded(data.moduleScripts,999),modulesSupported:data.modulesSupported === true,
                 scriptErrorKind:['SyntaxError','ReferenceError','TypeError','RangeError','ResourceError','Error'].indexOf(data.scriptErrorKind) === -1 ? '' : data.scriptErrorKind,
-                missingFeature:knownPlayerFeature(data.missingFeature), nativeEngine:data.engine === 'native-hls'};
+                missingFeature:knownPlayerFeature(data.missingFeature), engine:['hlsjs','native-hls'].indexOf(data.engine) === -1 ? 'site' : data.engine};
               window.__scTV.player.lastState = lastState;
-              if (lastState.stage === 'playing') window.clearTimeout(playerWatchdog);
-              playerStatus.textContent = stageLabels[lastState.stage] + (lastState.error ? ' ' + errorLabels[lastState.error] + '.' : '') + ' Info per i dettagli.';
-              playerStatus.hidden = lastState.stage === 'playing';
+              if (!resumeSent) {
+                resumeSent = true;
+                var resumeAt = resumePosition();
+                if (resumeAt > 0) {
+                  try { event.source.postMessage({type:'sctv-resume', position:resumeAt}, 'https://vixcloud.cc'); } catch (e) {}
+                }
+              }
+              var position = bounded(data.position, 86400), duration = bounded(data.duration, 86400);
+              if (position > 0) {
+                lastProgress = {p:position, d:duration};
+                if (Math.abs(position - lastSaved) >= 5 || finished(position, duration)) saveProgress(position, duration);
+              }
+              if (lastState.stage === 'playing') {
+                window.clearTimeout(playerWatchdog);
+                // Playback started after an automatic recovery opening: get out of the way.
+                if (openedByRecovery && !diagnosticPanel.hidden) togglePlayerDiagnostics();
+                openedByRecovery = false;
+              }
               renderDiagnostics();
               if (lastState.stage === 'no-video') {
                 if (noVideoSince === null) noVideoSince = Date.now();
                 if (!automaticallyOpened && Date.now() - noVideoSince >= 8000) {
                   automaticallyOpened = true;
-                  if (diagnosticPanel.hidden) togglePlayerDiagnostics();
+                  if (diagnosticPanel.hidden) { togglePlayerDiagnostics(); openedByRecovery = true; }
                 }
               } else noVideoSince = null;
             });
@@ -861,10 +1261,13 @@
                   } catch (e) {}
                 }
               }
-              if (diagnosticPanel.hidden) togglePlayerDiagnostics();
+              if (diagnosticPanel.hidden) { togglePlayerDiagnostics(); openedByRecovery = true; }
               else renderDiagnostics();
-            },12000);
-            window.addEventListener('pagehide',function () { window.clearTimeout(playerWatchdog); });
+            },25000);
+            window.addEventListener('pagehide',function () {
+              window.clearTimeout(playerWatchdog);
+              if (lastProgress && lastProgress.p !== lastSaved) saveProgress(lastProgress.p, lastProgress.d);
+            });
           } else window.__scTV.player.reason = 'unexpected-embed-address';
         }
       }

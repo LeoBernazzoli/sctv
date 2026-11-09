@@ -1,6 +1,6 @@
 # SC TV — TizenBrew
 
-Versione applicazione **0.3.3**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
+Versione applicazione **0.4.0**. Interfaccia non ufficiale pensata per la TV, con schermata in evidenza, locandine grandi, ricerca, lista personale e selezione di stagioni ed episodi. Sostituisce la navigazione desktop di StreamingCommunity mentre il sito è aperto in TizenBrew.
 
 ## Installazione una volta sola: SC TV Auto
 
@@ -143,3 +143,39 @@ Il pannello diagnostico indica **Lettore: video nativo della TV** quando è atti
 **Seconda causa, che bloccava tutto.** TizenBrew si collega al browser della TV con il debugger di Chrome attivo (`Debugger.enable`). La pagina vixcloud contiene uno script anti-strumenti-sviluppatore che esegue `debugger` ogni 111 ms. Con un debugger collegato, il browser si ferma su quell'istruzione e nessuno lo fa ripartire. Sul modello 2017 tutti i frame condividono lo stesso thread, quindi si fermano anche la pagina SC TV, il pannello di emergenza e il video nativo della 0.3.2. Resta solo l'animazione CSS della rotella.
 
 Dalla 0.3.3, nel frame vixcloud, uno MutationObserver stacca dal documento gli script inline che contengono `debugger` prima che il parser li esegua. TizenBrew valuta il modulo alla creazione del contesto del frame, prima che il parser arrivi in fondo alla pagina. Verificato in Chromium: lo script con `debugger` non viene eseguito e gli altri script della pagina sì. Sulla TV fisica resta da confermare.
+
+## Impostazioni del lettore (0.4.0)
+
+Il lettore SC TV usa ora **hls.js 1.5.20** (build ES5, versione fissata con controllo d'integrità SRI, caricata da jsDelivr solo dentro il frame del player). Così sono disponibili le stesse scelte del player del sito.
+
+| Tasto nel lettore | Azione |
+| --- | --- |
+| OK / Play / Pausa | Pausa e ripresa |
+| Sinistra / Destra, Avanti / Indietro veloce | 10 secondi indietro / avanti |
+| Su / Giù / Info | Apre le impostazioni |
+| Indietro | Chiude le impostazioni, altrimenti esce dal lettore e torna alla pagina precedente |
+| Blu | Home del catalogo |
+
+Nel menu: Su/Giù scelgono la riga, Sinistra/Destra o OK cambiano il valore, che viene applicato subito.
+
+- **Qualità**: Auto o le risoluzioni offerte dallo stream. Senza una scelta salvata parte dalla più alta disponibile; una scelta salvata (per esempio 1080p) usa la più vicina inferiore se il titolo non la offre.
+- **Audio**: le tracce della playlist (per esempio Italiano/Inglese).
+- **Sottotitoli**: Disattivati o le tracce disponibili, inclusi i forzati.
+- **Velocità**: da 0,5× a 2×.
+- **Server**: Server1/Server2 come nel menu del sito; il cambio riprende dallo stesso punto.
+- **Lettore**: Avanzato (hls.js) o TV (base), cioè il video nativo della 0.3.2, senza scelta di tracce.
+
+Le scelte vengono ricordate per i titoli successivi. Se hls.js non si carica entro 10 secondi o segnala un errore non recuperabile, il lettore passa da solo al video nativo della TV mantenendo la posizione.
+
+Sono stati rimossi i pulsanti **Catalogo** e **Info lettore** e la scritta di stato: per uscire basta Indietro. Il pannello diagnostico resta solo come apertura di emergenza, se la riproduzione non parte entro 25 secondi, e si chiude da solo se il video poi parte. La versione dell'app si legge nell'intestazione del menu impostazioni.
+
+**1080p.** Il sito concede il Full HD caso per caso: l'abbonamento Premium lo garantisce («Streaming fino a 1080p garantito»), per gli altri lo decide il server titolo per titolo. Quando è concesso, l'indirizzo del player contiene `canPlayFHD` e SC TV aggiunge `h=1` come il sito, quindi compare 1080p nel menu. Senza quel permesso il server rifiuta `h=1` (403): non viene forzato. Se sul computer vedi 1080p con il tuo account, accedi allo stesso account anche dalla TV. Le tracce audio e sottotitoli, comprese quelle in inglese, sono quelle che lo stream offre per ciascun titolo.
+
+**Cronologia e ripresa.** SC TV ricorda su questa TV cosa hai guardato e fino a dove (localStorage del sito, nessun invio esterno):
+
+- In home c'è la riga **Continua a guardare**, con barra di avanzamento e minuti rimasti. OK apre subito il video dal punto salvato. Per una serie, quando un episodio è finito compare **Prossimo: episodio successivo**.
+- Nella pagina di un titolo il pulsante diventa **Riprendi S1 · Episodio 2** (o **Riprendi da 18:20** per i film). Gli episodi mostrano **✓ Visto** oppure i minuti rimasti, con la barra.
+- Il lettore riprende dal punto salvato e lo mostra nella barra; nelle impostazioni c'è **Ricomincia** per tornare all'inizio.
+- La posizione viene salvata ogni 5 secondi di visione e all'uscita. Un titolo è considerato finito negli ultimi 90 secondi (o nell'ultimo 4%). Vengono tenuti gli ultimi 40 titoli e 600 episodi.
+
+Verificato in Chromium con lo stream reale: riproduzione 720p, cambio audio, sottotitoli (299 battute caricate), qualità 480p e cambio server. Sulla TV fisica resta da confermare, in particolare la fluidità di hls.js (MSE) sul modello 2017.

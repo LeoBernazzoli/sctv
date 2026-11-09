@@ -1,12 +1,16 @@
-SC TV 0.3.3 / SC TV Auto 1.0.0 — 9 novembre 2026
+SC TV 0.4.0 / SC TV Auto 1.0.0 — 9 novembre 2026
 
-Causa della rotella infinita: TizenBrew attiva Debugger.enable; lo script anti-debug della pagina vixcloud (debugger ogni 111 ms) mette in pausa tutto il renderer della TV.
-Correzione 0.3.3: lo script inline con `debugger` viene staccato dal documento prima dell'esecuzione (MutationObserver).
-Correzione 0.3.2 (mantenuta): JW Player non è analizzabile da Chromium 47; la playlist HLS viene riprodotta con il <video> nativo.
+Nuovo: menu impostazioni del lettore (qualità, audio, sottotitoli, velocità, server, ricomincia, tipo di lettore) con hls.js 1.5.20 (ES5, SRI).
+Nuovo: cronologia sulla TV con "Continua a guardare", Riprendi nella pagina del titolo, episodi visti e ripresa automatica.
+Qualità: parte dalla più alta offerta (1080p quando il sito la concede con canPlayFHD).
+Rimossi i pulsanti Catalogo e Info lettore; Indietro esce dal lettore.
+Ripiego automatico sul video nativo della TV se hls.js non si carica o fallisce.
+Mantenute le correzioni 0.3.2 (video nativo) e 0.3.3 (trappola anti-debug).
 
 Build e controllo sintassi: superati; bundle ES5.
-Test automatici: 53 superati, 0 falliti.
-Prova in Chromium reale: script trappola non eseguito, altri script eseguiti normalmente.
-Prova live della playlist: HTTP 200, H.264 720p/480p + AAC.
+Test automatici: 69 superati, 0 falliti.
+Prova in Chromium con lo stream reale: riproduzione, cambio audio/sottotitoli/qualità/server, preferenze ricordate, ripresa da 10:00 con riproduzione proseguita.
+Prova visiva: riga Continua a guardare con barre e minuti rimasti sui dati reali del sito.
+1080p: per gli utenti non abbonati il server rifiuta h=1 (403) quando non concede il Full HD; non viene forzato.
 
-Riproduzione sulla TV fisica: da confermare.
+Riproduzione con hls.js sulla TV fisica: da confermare.

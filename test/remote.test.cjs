@@ -21,7 +21,7 @@ async function boot(t, options = {}) {
   const dom = new JSDOM(html(options.page || home), {url:options.url || config.websiteURL,runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:new VirtualConsole()});
   const w = dom.window;
   const localTimers=[];
-  if(options.captureWatchdog){const schedule=w.setTimeout.bind(w);w.setTimeout=(fn,delay,...args)=>{if(delay===12000){localTimers.push(fn);return 99999;}return schedule(fn,delay,...args);};}
+  if(options.captureWatchdog){const schedule=w.setTimeout.bind(w);w.setTimeout=(fn,delay,...args)=>{if(delay===25000){localTimers.push(fn);return 99999;}return schedule(fn,delay,...args);};}
   t.after(() => w.close());
   Object.defineProperty(w,'innerWidth',{value:1920,writable:true});
   Object.defineProperty(w,'innerHeight',{value:1080,writable:true});
@@ -42,6 +42,7 @@ async function boot(t, options = {}) {
     abort() { this.aborted=true;w.clearTimeout(this.timer);if(this.onabort)this.onabort(); }
   };
   if(options.storage)w.localStorage.setItem('sctv-list',JSON.stringify(options.storage));
+  if(options.storageHistory)w.localStorage.setItem('sctv-history',JSON.stringify(options.storageHistory));
   if(options.modern)Object.defineProperty(w.HTMLScriptElement.prototype,'noModule',{value:false,configurable:true});
   w.eval(source);
   await tick(w);
@@ -227,6 +228,9 @@ function embeddedEnvironment(t,parentURL=config.websiteURL,options={}){
   if(video){Object.defineProperty(video,'paused',{get:()=>paused});
   video.play=()=>{paused=false;return Promise.resolve();};video.pause=()=>{paused=true;};}
   if(options.master)child.masterPlaylist=options.master;
+  if(options.streams)child.streams=options.streams;
+  if(options.prefs)child.localStorage.setItem('sctv-player',JSON.stringify(options.prefs));
+  if(options.Hls)child.Hls=options.Hls;
   if(options.jwplayer)child.jwplayer=()=>({});
   child.eval(source);
   if(child.document.readyState==='loading')child.document.dispatchEvent(new child.Event('DOMContentLoaded'));
@@ -252,13 +256,14 @@ test('embedded helper does not activate for a player opened from an unrelated si
   assert.equal(child.__scTVFrame,undefined);assert.equal(reports.length,0);
 });
 
-test('D-pad and OK can open player diagnostics without pointer input',async t=>{
+test('player has no Catalogo or Info buttons and Back leaves it',async t=>{
  const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
- const {d,key}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2'});
- key(39);assert.equal(d.activeElement.id,'sc-tv-player-info');
- key(13);assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,false);
- key(10009);assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,true);
- key(37);assert.equal(d.activeElement.id,'sc-tv-player-back');
+ const {w,d,key}=await boot(t,{page,url:'https://streamingcommunityz.boo/en/watch/2'});
+ assert.equal(d.querySelector('#sc-tv-player-back'),null);assert.equal(d.querySelector('#sc-tv-player-info'),null);
+ assert.equal(d.querySelector('#sc-tv-player-status'),null);
+ key(457);assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,false);
+ key(10009);assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,true);assert.equal(w.__scTV.player.leaving,undefined);
+ key(10009);assert.equal(w.__scTV.player.leaving,true);
 });
 test('missing video opens diagnostics automatically after eight seconds of reported blockage',async t=>{
  const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
@@ -298,8 +303,8 @@ test('player recovery opens without receiving any messages from the external pla
  assert.equal(localTimers.length,1);assert.equal(d.querySelector('#sc-tv-player-diagnostics').hidden,true);
  localTimers[0]();const panel=d.querySelector('#sc-tv-player-diagnostics');
  assert.equal(panel.hidden,false);assert.match(panel.textContent,/Apertura di emergenza/);assert.match(panel.textContent,/Nessun dato ricevuto/);
- assert.equal(w.__scTV.player.diagnosticsReason,'local-timeout');assert.equal(d.activeElement.id,'sc-tv-player-info');
- assert.match(d.querySelector('#sc-tv-player-info').textContent,new RegExp(config.version.replace(/\./g,'\\.')));
+ assert.equal(w.__scTV.player.diagnosticsReason,'local-timeout');
+ assert.match(panel.textContent,new RegExp('SC TV '+config.version.replace(/\./g,'\\.')));
 });
 test('player recovery stays closed when playback is reported',async t=>{
  const page={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2'}};
@@ -316,7 +321,7 @@ test('closing diagnostics manually suppresses the local recovery reopening',asyn
 
 const master={url:'https://vixcloud.cc/playlist/2',params:{token:'secret-token',expires:'1794234852',asn:''}};
 test('Tizen 3 player: native video plays the site playlist when JW Player cannot start',t=>{
- const {child,reports}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master});
+ const {child,reports}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,prefs:{engine:'native'}});
  const video=child.document.getElementById('sc-tv-native');assert.ok(video);
  const src=new URL(video.getAttribute('src'));
  assert.equal(src.origin+src.pathname,'https://vixcloud.cc/playlist/2');
@@ -328,7 +333,7 @@ test('Tizen 3 player: native video plays the site playlist when JW Player cannot
  assert.equal(JSON.stringify(reports).includes('playlist'),false);
 });
 test('Tizen 3 player: remote arrows seek and OK toggles the native video',t=>{
- const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master});
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,prefs:{engine:'native'}});
  const video=child.document.getElementById('sc-tv-native');let paused=true;
  Object.defineProperty(video,'paused',{get:()=>paused});video.play=()=>{paused=false;return Promise.resolve();};video.pause=()=>{paused=true;};
  let time=100;Object.defineProperty(video,'currentTime',{get:()=>time,set:v=>{time=v;}});
@@ -365,4 +370,163 @@ test('embedded helper detaches the anti-debugger loop before it can pause the TV
  await new Promise(r=>child.setTimeout(r,0));
  assert.equal(trap.parentNode,null);assert.equal(trap.type,'javascript/blocked');
  assert.equal(normal.parentNode,d.body);assert.equal(child.__scTVFrame.disarmed,1);
+});
+
+function fakeHls(){
+ const created=[];
+ class Hls{
+  static isSupported(){return true;}
+  constructor(config){this.config=config;this.handlers={};this.levels=[];this.audioTracks=[];this.subtitleTracks=[];
+   this.currentLevel=-1;this.audioTrack=0;this.subtitleTrack=-1;this.subtitleDisplay=true;this.destroyed=false;created.push(this);}
+  on(name,fn){(this.handlers[name]=this.handlers[name]||[]).push(fn);}
+  emit(name,data){(this.handlers[name]||[]).forEach(fn=>fn(name,data));}
+  loadSource(url){this.url=url;} attachMedia(v){this.media=v;} destroy(){this.destroyed=true;}
+  startLoad(){this.restarted=true;} recoverMediaError(){this.recovered=true;}
+ }
+ Hls.Events={MANIFEST_PARSED:'m',AUDIO_TRACKS_UPDATED:'a',SUBTITLE_TRACKS_UPDATED:'s',LEVEL_SWITCHED:'l',ERROR:'e'};
+ Hls.ErrorTypes={NETWORK_ERROR:'net',MEDIA_ERROR:'media',OTHER_ERROR:'other'};
+ return {Hls,created};
+}
+function loadedHls(hls){
+ hls.levels=[{height:480},{height:720},{height:1080}];hls.emit('m',{});
+ hls.audioTracks=[{name:'Italian',lang:'ita'},{name:'English',lang:'eng'}];hls.audioTrack=1;hls.emit('a',{});
+ hls.subtitleTracks=[{name:'Italian [Forced]',lang:'ita-forced'},{name:'Italian',lang:'ita'}];hls.subtitleTrack=0;hls.emit('s',{});
+}
+const pressIn=(child,code)=>{const e=new child.KeyboardEvent('keydown',{keyCode:code,bubbles:true,cancelable:true});child.document.body.dispatchEvent(e);return e;};
+test('settings: hls.js player picks the best quality offered and lists quality, audio and subtitles',t=>{
+ const {Hls,created}=fakeHls();
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,Hls});
+ assert.equal(created.length,1);const hls=created[0];
+ assert.match(hls.url,/^https:\/\/vixcloud\.cc\/playlist\/2\?token=secret-token/);
+ loadedHls(hls);assert.equal(hls.currentLevel,2);
+ const panel=child.document.getElementById('sc-tv-settings');assert.equal(panel.hidden,true);
+ assert.equal(pressIn(child,40).defaultPrevented,true);assert.equal(panel.hidden,false);
+ const rows=[...panel.querySelectorAll('.sc-tv-setting')].map(r=>r.textContent);
+ assert.deepEqual(rows.map(r=>r.replace(/‹.*/,'')),['Qualità','Audio','Sottotitoli','Velocità','Lettore']);
+ assert.match(rows[0],/1080p/);assert.match(rows[1],/English/);assert.match(rows[2],/Italian \[Forced\]/);
+});
+test('settings: remote changes quality, audio, subtitles and speed and remembers them',t=>{
+ const {Hls,created}=fakeHls();
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,Hls});
+ const hls=created[0];loadedHls(hls);const video=child.document.getElementById('sc-tv-native');
+ pressIn(child,457);
+ pressIn(child,37);assert.equal(hls.currentLevel,-1);
+ pressIn(child,40);pressIn(child,39);assert.equal(hls.audioTrack,0);
+ pressIn(child,40);pressIn(child,37);assert.equal(hls.subtitleTrack,-1);
+ pressIn(child,40);pressIn(child,39);assert.equal(video.playbackRate,1.25);
+ const prefs=JSON.parse(child.localStorage.getItem('sctv-player'));
+ assert.deepEqual({q:prefs.quality,a:prefs.audio,s:prefs.subs,v:prefs.speed},{q:'auto',a:'ita',s:'off',v:1.25});
+ pressIn(child,10009);assert.equal(child.document.getElementById('sc-tv-settings').hidden,true);
+});
+test('settings: saved preferences are applied to the next title',t=>{
+ const {Hls,created}=fakeHls();
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,Hls,prefs:{quality:480,audio:'ita',subs:'ita|Italian'}});
+ const hls=created[0];loadedHls(hls);
+ assert.equal(hls.currentLevel,0);assert.equal(hls.audioTrack,0);assert.equal(hls.subtitleTrack,1);
+});
+test('settings: Back with the menu closed still leaves the player',t=>{
+ const {Hls}=fakeHls();
+ const {child,reports}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,Hls});
+ pressIn(child,10009);assert.ok(reports.some(r=>r.data.action==='navigate'&&r.data.key===10009));
+});
+test('settings: server switch keeps the stream parameters',t=>{
+ const {Hls,created}=fakeHls();
+ const streams=[{name:'Server1',active:true,url:'https://vixcloud.cc/playlist/2?ub=1'},{name:'Server2',active:false,url:'https://vixcloud.cc/playlist/2?ab=1'},{name:'Evil',url:'https://example.org/x'}];
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,Hls,streams});
+ assert.match(created[0].url,/\?ub=1&token=secret-token/);loadedHls(created[0]);
+ pressIn(child,40);const rows=[...child.document.querySelectorAll('.sc-tv-setting')].map(r=>r.textContent.replace(/‹.*/,''));
+ const server=rows.indexOf('Server');assert.ok(server>0);
+ for(let i=0;i<server;i++)pressIn(child,40);
+ pressIn(child,39);assert.equal(created.length,2);assert.equal(created[0].destroyed,true);
+ assert.match(created[1].url,/\?ab=1&token=secret-token/);
+});
+test('settings: fatal hls.js errors fall back to the TV built-in player',t=>{
+ const {Hls,created}=fakeHls();
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,Hls});
+ const hls=created[0];
+ hls.emit('e',{fatal:true,type:'media'});assert.equal(hls.recovered,true);
+ hls.emit('e',{fatal:true,type:'media'});assert.equal(hls.destroyed,true);
+ const video=child.document.getElementById('sc-tv-native');
+ assert.match(video.getAttribute('src'),/^https:\/\/vixcloud\.cc\/playlist\/2\?/);
+ assert.equal(child.__scTVFrame.player.engine,'native');
+});
+test('settings: hls.js is loaded pinned with subresource integrity',t=>{
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master});
+ const script=[...child.document.scripts].find(s=>/hls\.js@/.test(s.src));
+ assert.ok(script);assert.equal(script.src,'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js');
+ assert.match(script.integrity,/^sha384-/);assert.equal(script.crossOrigin,'anonymous');
+});
+
+test('settings: a saved 1080p choice falls back to 720p when the title only offers 720p',t=>{
+ const {Hls,created}=fakeHls();
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,Hls,prefs:{quality:1080}});
+ const hls=created[0];hls.levels=[{height:480},{height:720}];hls.emit('m',{});assert.equal(hls.currentLevel,1);
+});
+test('player frame resumes only from the watch page that embeds it',t=>{
+ const {Hls,created}=fakeHls();
+ const {child}=embeddedEnvironment(t,config.websiteURL,{noVideo:true,master,Hls});
+ const video=child.document.getElementById('sc-tv-native');let time=0;
+ Object.defineProperty(video,'currentTime',{get:()=>time,set:v=>{time=v;}});Object.defineProperty(video,'readyState',{value:1});
+ child.dispatchEvent(new child.MessageEvent('message',{origin:'https://example.org',source:child.top,data:{type:'sctv-resume',position:600}}));
+ assert.equal(time,0);
+ child.dispatchEvent(new child.MessageEvent('message',{origin:'https://streamingcommunityz.boo',source:child.top,data:{type:'sctv-resume',position:600}}));
+ assert.equal(time,600);
+});
+const seriesWatch={component:'Titles/Watch',props:{embedUrl:'https://streamingcommunityz.boo/en/iframe/2?episode_id=1001',
+ title:{id:2,slug:'beta',name:'Beta',type:'tv'},episode:{id:1001,number:1,name:'Inizio'},nextEpisode:{id:1002,number:2,name:'Seguito'}}};
+async function watching(t,options={}){
+ const env=await boot(t,{page:options.page||seriesWatch,url:'https://streamingcommunityz.boo/en/watch/2',storageHistory:options.history});
+ const inner=env.d.querySelector('#sc-tv-player iframe').contentWindow.document;inner.open();inner.write('<iframe src="https://vixcloud.cc/embed/2"></iframe>');inner.close();
+ const source=inner.querySelector('iframe').contentWindow;const sent=[];source.postMessage=(data,target)=>sent.push({data,target});
+ const report=data=>env.w.dispatchEvent(new env.w.MessageEvent('message',{origin:'https://vixcloud.cc',source,data:{type:'sctv-player-state',stage:'playing',readyState:4,...data}}));
+ return {...env,report,sent};
+}
+test('history: watching an episode saves its position on this TV',async t=>{
+ const {w,report}=await watching(t);
+ report({position:125,duration:2700});report({position:127,duration:2700});report({position:131,duration:2700});
+ const h=JSON.parse(w.localStorage.getItem('sctv-history'));
+ assert.equal(h.titles[0].id,2);assert.equal(h.titles[0].episode.id,1001);assert.equal(h.titles[0].next.id,1002);
+ assert.equal(h.episodes['1001'].p,131);assert.equal(h.episodes['1001'].done,false);
+});
+test('history: reopening an episode asks the player to resume where it stopped',async t=>{
+ const history={titles:[{id:2,slug:'beta',name:'Beta',type:'tv',episode:{id:1001,number:1}}],episodes:{'1001':{p:845,d:2700,u:1,done:false}}};
+ const {report,sent}=await watching(t,{history});
+ report({position:0,duration:0});
+ assert.deepEqual(JSON.parse(JSON.stringify(sent)),[{data:{type:'sctv-resume',position:845},target:'https://vixcloud.cc'}]);
+ report({position:3,duration:2700});assert.equal(sent.length,1);
+});
+test('history: finished episodes are not resumed and point to the next one',async t=>{
+ const {w,report,sent}=await watching(t,{history:{titles:[],episodes:{'1001':{p:2650,d:2700,u:1,done:true}}}});
+ report({position:0});assert.equal(sent.length,0);
+ report({position:2660,duration:2700});
+ const h=JSON.parse(w.localStorage.getItem('sctv-history'));assert.equal(h.episodes['1001'].done,true);
+});
+test('history: home shows Continua a guardare with progress and opens the episode directly',async t=>{
+ const history={titles:[{id:2,slug:'beta',name:'Beta',type:'tv',episode:{id:1001,number:1,season:1}},{id:1,slug:'alpha',name:'Alpha',type:'movie',p:1800,d:5400}],
+  episodes:{'1001':{p:900,d:2700,u:2,done:false}}};
+ const {d,focused,key}=await boot(t,{storageHistory:history});
+ const row=[...d.querySelectorAll('.sc-row h2')].map(h=>h.textContent);assert.equal(row[0],'Continua a guardare');
+ const cards=[...d.querySelectorAll('[data-card^="continue-"]')];assert.equal(cards.length,2);
+ assert.match(cards[0].textContent,/S1 · Episodio 1 · 30 min rimasti/);assert.match(cards[1].textContent,/60 min rimasti/);
+ assert.equal(cards[0].querySelector('.sc-progress i').style.width,'33%');
+ key(40);assert.equal(focused(),'continue-0');
+});
+test('history: a finished series episode offers the next one in Continua a guardare',async t=>{
+ const history={titles:[{id:2,slug:'beta',name:'Beta',type:'tv',episode:{id:1001,number:1,season:1},next:{id:1002,number:2,season:1}}],
+  episodes:{'1001':{p:2690,d:2700,u:2,done:true}}};
+ const {d}=await boot(t,{storageHistory:history});
+ assert.match(d.querySelector('[data-card="continue-0"]').textContent,/Prossimo: S1 · Episodio 2/);
+});
+test('history: title page offers Riprendi and marks watched episodes',async t=>{
+ const history={titles:[{id:2,slug:'beta',name:'Beta',type:'tv',episode:{id:1002,number:2,season:1}}],
+  episodes:{'1001':{p:2690,d:2700,u:1,done:true},'1002':{p:600,d:2700,u:2,done:false}}};
+ const {d}=await boot(t,{page:details,url:'https://streamingcommunityz.boo/en/titles/2-beta',storageHistory:history});
+ assert.match(d.querySelector('[data-hero="play"]').textContent,/Riprendi S1 · Episodio 2/);
+ assert.match(d.querySelector('[data-hero="play"]').getAttribute('href'),/\?e=1002$/);
+ const eps=[...d.querySelectorAll('.sc-episode')];assert.match(eps[0].textContent,/✓ Visto/);assert.match(eps[1].textContent,/35 min rimasti/);
+});
+test('history: starting an episode from the title page remembers its season',async t=>{
+ const {w,d}=await boot(t,{page:details,url:'https://streamingcommunityz.boo/en/titles/2-beta'});
+ const episode=d.querySelector('[data-key="episode-1"]');episode.addEventListener('click',e=>e.preventDefault());episode.click();
+ const h=JSON.parse(w.localStorage.getItem('sctv-history'));assert.equal(h.titles[0].episode.id,1002);assert.equal(h.titles[0].episode.season,1);
 });

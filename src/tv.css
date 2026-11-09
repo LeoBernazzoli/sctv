@@ -82,3 +82,9 @@ html.sc-tv-active body>#app{display:none!important}
 #sc-tv-root .sc-search-form input{margin-right:24px}
 #sc-tv-root .sc-seasons button+button{margin-left:20px}
 #sc-tv-root .sc-episode>span+span{margin-left:28px}
+#sc-tv-root .sc-progress{position:absolute;left:0;right:0;bottom:0;height:7px;background:rgba(255,255,255,.28);display:block}
+#sc-tv-root .sc-progress i{display:block;height:7px;background:#e50914}
+#sc-tv-root .sc-episode-copy{position:relative}
+#sc-tv-root .sc-episode-copy .sc-progress{position:relative;margin-top:12px;max-width:620px;border-radius:4px;overflow:hidden}
+#sc-tv-root .sc-episode-status{white-space:nowrap;margin-left:24px;color:#c9cfdb}
+#sc-tv-root .sc-watched .sc-episode-number{color:#7f889b}
